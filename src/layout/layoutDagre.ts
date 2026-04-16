@@ -42,7 +42,7 @@ export function layoutDagre(
     }
   }
 
-  const familyUnits = buildFamilyUnits(childToParents)
+  const familyUnits = buildFamilyUnits(childToParents, spouseAdj)
 
   const g = new dagre.graphlib.Graph()
   g.setGraph({
@@ -74,7 +74,6 @@ export function layoutDagre(
   }
 
   snapSpouseClusters(positions, personIds, spouseAdj)
-  pullCoParents(positions, personIds, spouseAdj, childToParents)
   resolveOverlaps(positions, personIds, spouseAdj) // Space parents before centering children
   centerChildrenUnderParents(positions, familyUnits, personIds, spouseAdj)
   resolveOverlaps(positions, personIds, spouseAdj) // Final pass for child overlaps
@@ -82,7 +81,10 @@ export function layoutDagre(
   return positions
 }
 
-function buildFamilyUnits(childToParents: Map<string, Set<string>>): FamilyUnit[] {
+function buildFamilyUnits(
+  childToParents: Map<string, Set<string>>,
+  spouseAdj: Map<string, Set<string>>
+): FamilyUnit[] {
   const map = new Map<string, FamilyUnit>()
   let idx = 0
 
@@ -92,6 +94,18 @@ function buildFamilyUnits(childToParents: Map<string, Set<string>>): FamilyUnit[
       map.set(key, { id: `__fu_${idx++}`, parentIds: [...parents].sort(), childIds: [] })
     }
     map.get(key)!.childIds.push(childId)
+  }
+
+  const seenSpousePairs = new Set<string>()
+  for (const [p1, nbrs] of spouseAdj) {
+    for (const p2 of nbrs) {
+      const key = [p1, p2].sort().join('|')
+      if (seenSpousePairs.has(key)) continue
+      seenSpousePairs.add(key)
+      if (!map.has(key)) {
+        map.set(key, { id: `__fu_${idx++}`, parentIds: [p1, p2].sort(), childIds: [] })
+      }
+    }
   }
 
   return [...map.values()]
@@ -164,99 +178,6 @@ function snapSpouseClusters(
 
     for (let i = 0; i < ordered.length; i++) {
       positions[ordered[i]] = { x: startX + i * SPOUSE_PAIR_SPACING, y: avgY }
-    }
-  }
-}
-
-/**
- * Places single co-parents (exes) adjacent to their spouse-cluster counterparts
- * based on shared children. This prevents Dagre from inadvertently leaving
- * a divorced co-parent completely separated from their children.
- */
-function pullCoParents(
-  positions: Record<string, NodePosition>,
-  personIds: string[],
-  spouseAdj: Map<string, Set<string>>,
-  childToParents: Map<string, Set<string>>
-) {
-  const clusterOf = buildClusterMap(personIds, spouseAdj)
-  
-  const parentsToChildren = new Map<string, Set<string>>()
-  for (const [childId, parents] of childToParents.entries()) {
-    for (const p of parents) {
-      if (!parentsToChildren.has(p)) parentsToChildren.set(p, new Set())
-      parentsToChildren.get(p)!.add(childId)
-    }
-  }
-
-  const placements = new Map<string, { left: string[]; right: string[] }>()
-
-  for (const id of personIds) {
-    const cluster = clusterOf.get(id)
-    if (!cluster || cluster.length > 1) continue
-
-    const myChildren = parentsToChildren.get(id)
-    if (!myChildren) continue
-
-    let bestAnchor: { id: string; sharedCount: number } | null = null
-
-    for (const childId of myChildren) {
-      const parents = childToParents.get(childId)
-      if (!parents) continue
-      for (const otherP of parents) {
-        if (otherP === id) continue
-        const otherCluster = clusterOf.get(otherP)
-        if (!otherCluster || otherCluster.length <= 1) continue
-
-        const shared = [...myChildren].filter(c => childToParents.get(c)?.has(otherP)).length
-        if (!bestAnchor || shared > bestAnchor.sharedCount) {
-          bestAnchor = { id: otherP, sharedCount: shared }
-        }
-      }
-    }
-
-    if (!bestAnchor) continue
-
-    const anchorCluster = clusterOf.get(bestAnchor.id)!
-    const sortedAnchorCluster = [...anchorCluster].sort(
-      (a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0)
-    )
-
-    const anchorIndex = sortedAnchorCluster.indexOf(bestAnchor.id)
-    let side: 'left' | 'right'
-    if (anchorIndex === 0) side = 'left'
-    else if (anchorIndex === sortedAnchorCluster.length - 1) side = 'right'
-    else {
-      side = (positions[id]?.x ?? 0) <= (positions[bestAnchor.id]?.x ?? 0) ? 'left' : 'right'
-    }
-
-    const anchorRep = sortedAnchorCluster[0]! 
-    if (!placements.has(anchorRep)) placements.set(anchorRep, { left: [], right: [] })
-    placements.get(anchorRep)![side].push(id)
-  }
-
-  for (const [anchorRep, sides] of placements.entries()) {
-    const anchorCluster = clusterOf.get(anchorRep)!
-    const sortedAnchorCluster = [...anchorCluster].sort(
-      (a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0)
-    )
-
-    const clusterLeftX = positions[sortedAnchorCluster[0]]!.x
-    const clusterRightX = positions[sortedAnchorCluster[sortedAnchorCluster.length - 1]]!.x
-
-    sides.left.sort((a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0))
-    sides.right.sort((a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0))
-
-    for (let i = 0; i < sides.left.length; i++) {
-      const id = sides.left[sides.left.length - 1 - i]
-      positions[id]!.x = clusterLeftX - SPOUSE_PAIR_SPACING * (i + 1)
-      positions[id]!.y = positions[anchorRep]!.y 
-    }
-
-    for (let i = 0; i < sides.right.length; i++) {
-      const id = sides.right[i]
-      positions[id]!.x = clusterRightX + SPOUSE_PAIR_SPACING * (i + 1)
-      positions[id]!.y = positions[anchorRep]!.y
     }
   }
 }
