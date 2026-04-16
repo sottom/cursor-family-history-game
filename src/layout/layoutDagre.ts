@@ -74,9 +74,7 @@ export function layoutDagre(
   }
 
   snapSpouseClusters(positions, personIds, spouseAdj)
-  resolveOverlaps(positions, personIds, spouseAdj) // Space parents before centering children
-  centerChildrenUnderParents(positions, familyUnits, personIds, spouseAdj)
-  resolveOverlaps(positions, personIds, spouseAdj) // Final pass for child overlaps
+  alignFamilies(positions, familyUnits, personIds, spouseAdj)
 
   return positions
 }
@@ -183,54 +181,62 @@ function snapSpouseClusters(
 }
 
 /**
- * Shift each family unit's children so they are centered horizontally
- * beneath the midpoint of their actual parents.  When a child is part of
- * a spouse cluster the whole cluster moves together so couples aren't split.
+ * Iteratively relaxes the X coordinates of all clusters to minimize the
+ * horizontal distance between parents and children, maintaining the
+ * rigidity of spouse clusters. This ensures parents are centered over
+ * their children, and children are centered under their parents.
  */
-function centerChildrenUnderParents(
+function alignFamilies(
   positions: Record<string, NodePosition>,
   familyUnits: FamilyUnit[],
   personIds: string[],
   spouseAdj: Map<string, Set<string>>,
 ) {
   const clusterOf = buildClusterMap(personIds, spouseAdj)
+  const clusters = [...new Set(personIds.map((id) => clusterOf.get(id)!))]
 
-  for (const fu of familyUnits) {
-    if (fu.childIds.length === 0) continue
+  for (let pass = 0; pass < 20; pass++) {
+    const clusterForces = new Map<string[], number[]>()
+    for (const c of clusters) clusterForces.set(c, [])
 
-    const parentMidX =
-      fu.parentIds.reduce((s, id) => s + (positions[id]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
-      fu.parentIds.length
+    for (const fu of familyUnits) {
+      if (fu.childIds.length === 0 || fu.parentIds.length === 0) continue
 
-    const childClusterIds = new Set<string>()
-    const clusterCenterXs: number[] = []
+      const parentMidX =
+        fu.parentIds.reduce((s, id) => s + (positions[id]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
+        fu.parentIds.length
+      const childMidX =
+        fu.childIds.reduce((s, id) => s + (positions[id]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
+        fu.childIds.length
 
-    for (const cid of fu.childIds) {
-      const cluster = clusterOf.get(cid) ?? [cid]
-      const clusterKey = [...cluster].sort().join('|')
-      if (childClusterIds.has(clusterKey)) continue
-      childClusterIds.add(clusterKey)
+      const diff = parentMidX - childMidX
 
-      const cx =
-        cluster.reduce((s, mid) => s + (positions[mid]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
-        cluster.length
-      clusterCenterXs.push(cx)
+      // Children want to move right by diff
+      const childClusters = new Set(fu.childIds.map((id) => clusterOf.get(id)!))
+      for (const c of childClusters) clusterForces.get(c)!.push(diff)
+
+      // Parents want to move left by diff
+      const parentClusters = new Set(fu.parentIds.map((id) => clusterOf.get(id)!))
+      for (const c of parentClusters) clusterForces.get(c)!.push(-diff)
     }
 
-    const currentCenter =
-      clusterCenterXs.reduce((s, x) => s + x, 0) / clusterCenterXs.length
-    const dx = parentMidX - currentCenter
-
-    const shifted = new Set<string>()
-    for (const cid of fu.childIds) {
-      const cluster = clusterOf.get(cid) ?? [cid]
-      for (const mid of cluster) {
-        if (shifted.has(mid)) continue
-        shifted.add(mid)
-        const p = positions[mid]
-        if (p) positions[mid] = { x: p.x + dx, y: p.y }
+    let moved = false
+    for (const c of clusters) {
+      const forces = clusterForces.get(c)!
+      if (forces.length === 0) continue
+      const avgForce = forces.reduce((a, b) => a + b, 0) / forces.length
+      const shift = avgForce * 0.5 // Damping
+      if (Math.abs(shift) > 0.5) {
+        moved = true
+        for (const id of c) {
+          if (positions[id]) positions[id]!.x += shift
+        }
       }
     }
+
+    resolveOverlaps(positions, personIds, spouseAdj)
+
+    if (!moved) break
   }
 }
 
