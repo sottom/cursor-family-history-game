@@ -74,8 +74,10 @@ export function layoutDagre(
   }
 
   snapSpouseClusters(positions, personIds, spouseAdj)
+  pullCoParents(positions, personIds, spouseAdj, childToParents)
+  resolveOverlaps(positions, personIds, spouseAdj) // Space parents before centering children
   centerChildrenUnderParents(positions, familyUnits, personIds, spouseAdj)
-  resolveOverlaps(positions, personIds)
+  resolveOverlaps(positions, personIds, spouseAdj) // Final pass for child overlaps
 
   return positions
 }
@@ -95,15 +97,22 @@ function buildFamilyUnits(childToParents: Map<string, Set<string>>): FamilyUnit[
   return [...map.values()]
 }
 
-function orderSpouseChain(cluster: string[], spouseAdj: Map<string, Set<string>>): string[] {
+function orderSpouseChain(
+  cluster: string[],
+  spouseAdj: Map<string, Set<string>>,
+  positions: Record<string, NodePosition>
+): string[] {
   if (cluster.length <= 1) return cluster
   const inCluster = new Set(cluster)
 
-  const start = cluster.find((id) => {
+  const endpoints = cluster.filter((id) => {
     const nbrs = spouseAdj.get(id)
     if (!nbrs) return true
     return [...nbrs].filter((n) => inCluster.has(n)).length <= 1
-  }) ?? cluster[0]
+  })
+
+  // Pick the endpoint that Dagre placed furthest left
+  const start = endpoints.sort((a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0))[0] ?? cluster[0]
 
   const ordered: string[] = []
   const seen = new Set<string>()
@@ -114,7 +123,12 @@ function orderSpouseChain(cluster: string[], spouseAdj: Map<string, Set<string>>
     seen.add(curr)
     ordered.push(curr)
     const nbrs = spouseAdj.get(curr)
-    if (nbrs) for (const n of nbrs) if (!seen.has(n) && inCluster.has(n)) q.push(n)
+    if (nbrs) {
+      // Sort neighbors left-to-right to preserve Dagre's natural ordering
+      const nList = [...nbrs].filter((n) => !seen.has(n) && inCluster.has(n))
+      nList.sort((a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0))
+      for (const n of nList) q.push(n)
+    }
   }
   return ordered
 }
@@ -140,7 +154,7 @@ function snapSpouseClusters(
     }
     if (cluster.length <= 1) continue
 
-    const ordered = orderSpouseChain(cluster, spouseAdj)
+    const ordered = orderSpouseChain(cluster, spouseAdj, positions)
     const avgY = ordered.reduce((s, cid) => s + (positions[cid]?.y ?? 0), 0) / ordered.length
     const centerX =
       ordered.reduce((s, cid) => s + (positions[cid]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
@@ -150,6 +164,99 @@ function snapSpouseClusters(
 
     for (let i = 0; i < ordered.length; i++) {
       positions[ordered[i]] = { x: startX + i * SPOUSE_PAIR_SPACING, y: avgY }
+    }
+  }
+}
+
+/**
+ * Places single co-parents (exes) adjacent to their spouse-cluster counterparts
+ * based on shared children. This prevents Dagre from inadvertently leaving
+ * a divorced co-parent completely separated from their children.
+ */
+function pullCoParents(
+  positions: Record<string, NodePosition>,
+  personIds: string[],
+  spouseAdj: Map<string, Set<string>>,
+  childToParents: Map<string, Set<string>>
+) {
+  const clusterOf = buildClusterMap(personIds, spouseAdj)
+  
+  const parentsToChildren = new Map<string, Set<string>>()
+  for (const [childId, parents] of childToParents.entries()) {
+    for (const p of parents) {
+      if (!parentsToChildren.has(p)) parentsToChildren.set(p, new Set())
+      parentsToChildren.get(p)!.add(childId)
+    }
+  }
+
+  const placements = new Map<string, { left: string[]; right: string[] }>()
+
+  for (const id of personIds) {
+    const cluster = clusterOf.get(id)
+    if (!cluster || cluster.length > 1) continue
+
+    const myChildren = parentsToChildren.get(id)
+    if (!myChildren) continue
+
+    let bestAnchor: { id: string; sharedCount: number } | null = null
+
+    for (const childId of myChildren) {
+      const parents = childToParents.get(childId)
+      if (!parents) continue
+      for (const otherP of parents) {
+        if (otherP === id) continue
+        const otherCluster = clusterOf.get(otherP)
+        if (!otherCluster || otherCluster.length <= 1) continue
+
+        const shared = [...myChildren].filter(c => childToParents.get(c)?.has(otherP)).length
+        if (!bestAnchor || shared > bestAnchor.sharedCount) {
+          bestAnchor = { id: otherP, sharedCount: shared }
+        }
+      }
+    }
+
+    if (!bestAnchor) continue
+
+    const anchorCluster = clusterOf.get(bestAnchor.id)!
+    const sortedAnchorCluster = [...anchorCluster].sort(
+      (a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0)
+    )
+
+    const anchorIndex = sortedAnchorCluster.indexOf(bestAnchor.id)
+    let side: 'left' | 'right'
+    if (anchorIndex === 0) side = 'left'
+    else if (anchorIndex === sortedAnchorCluster.length - 1) side = 'right'
+    else {
+      side = (positions[id]?.x ?? 0) <= (positions[bestAnchor.id]?.x ?? 0) ? 'left' : 'right'
+    }
+
+    const anchorRep = sortedAnchorCluster[0]! 
+    if (!placements.has(anchorRep)) placements.set(anchorRep, { left: [], right: [] })
+    placements.get(anchorRep)![side].push(id)
+  }
+
+  for (const [anchorRep, sides] of placements.entries()) {
+    const anchorCluster = clusterOf.get(anchorRep)!
+    const sortedAnchorCluster = [...anchorCluster].sort(
+      (a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0)
+    )
+
+    const clusterLeftX = positions[sortedAnchorCluster[0]]!.x
+    const clusterRightX = positions[sortedAnchorCluster[sortedAnchorCluster.length - 1]]!.x
+
+    sides.left.sort((a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0))
+    sides.right.sort((a, b) => (positions[a]?.x ?? 0) - (positions[b]?.x ?? 0))
+
+    for (let i = 0; i < sides.left.length; i++) {
+      const id = sides.left[sides.left.length - 1 - i]
+      positions[id]!.x = clusterLeftX - SPOUSE_PAIR_SPACING * (i + 1)
+      positions[id]!.y = positions[anchorRep]!.y 
+    }
+
+    for (let i = 0; i < sides.right.length; i++) {
+      const id = sides.right[i]
+      positions[id]!.x = clusterRightX + SPOUSE_PAIR_SPACING * (i + 1)
+      positions[id]!.y = positions[anchorRep]!.y
     }
   }
 }
@@ -231,31 +338,90 @@ function buildClusterMap(
   return clusterOf
 }
 
-function resolveOverlaps(positions: Record<string, NodePosition>, personIds: string[]) {
-  const minXGap = PERSON_CARD_W + 24
+function resolveOverlaps(
+  positions: Record<string, NodePosition>,
+  personIds: string[],
+  spouseAdj: Map<string, Set<string>>,
+) {
+  const clusterOf = buildClusterMap(personIds, spouseAdj)
+  const clusters = [...new Set(personIds.map((id) => clusterOf.get(id)!))]
+
+  const minXGap = 24
   const yBand = PERSON_CARD_H * 0.7
 
   for (let pass = 0; pass < 12; pass++) {
     let moved = false
-    const sorted = personIds
-      .filter((id) => positions[id])
-      .sort((a, b) => {
-        const dy = positions[a]!.y - positions[b]!.y
-        if (Math.abs(dy) > 1) return dy
-        return positions[a]!.x - positions[b]!.x
+
+    const blocks = clusters
+      .map((cluster) => {
+        let minX = Number.POSITIVE_INFINITY
+        let maxX = Number.NEGATIVE_INFINITY
+        let sumY = 0
+        for (const id of cluster) {
+          const p = positions[id]
+          if (!p) continue
+          minX = Math.min(minX, p.x)
+          maxX = Math.max(maxX, p.x + PERSON_CARD_W)
+          sumY += p.y
+        }
+        return {
+          cluster,
+          left: minX,
+          right: maxX,
+          y: sumY / cluster.length,
+        }
       })
+      .filter((b) => b.left !== Number.POSITIVE_INFINITY)
 
-    for (let i = 0; i < sorted.length; i++) {
-      for (let j = i + 1; j < sorted.length; j++) {
-        const a = positions[sorted[i]]!
-        const b = positions[sorted[j]]!
+    blocks.sort((a, b) => {
+      const dy = a.y - b.y
+      if (Math.abs(dy) > 1) return dy
+      return a.left - b.left
+    })
+
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        const a = blocks[i]!
+        const b = blocks[j]!
         if (Math.abs(a.y - b.y) > yBand) continue
-        const gap = b.x - a.x
-        if (gap >= minXGap) continue
 
-        const push = (minXGap - gap) / 2 + 1
-        positions[sorted[i]] = { x: a.x - push, y: a.y }
-        positions[sorted[j]] = { x: b.x + push, y: b.y }
+        const aCenter = (a.left + a.right) / 2
+        const bCenter = (b.left + b.right) / 2
+
+        let overlap: number
+        if (aCenter <= bCenter) {
+          overlap = a.right + minXGap - b.left
+          if (overlap <= 0) continue
+          const push = overlap / 2 + 0.1
+          for (const id of a.cluster) {
+            const p = positions[id]
+            if (p) p.x -= push
+          }
+          for (const id of b.cluster) {
+            const p = positions[id]
+            if (p) p.x += push
+          }
+          a.left -= push
+          a.right -= push
+          b.left += push
+          b.right += push
+        } else {
+          overlap = b.right + minXGap - a.left
+          if (overlap <= 0) continue
+          const push = overlap / 2 + 0.1
+          for (const id of b.cluster) {
+            const p = positions[id]
+            if (p) p.x -= push
+          }
+          for (const id of a.cluster) {
+            const p = positions[id]
+            if (p) p.x += push
+          }
+          b.left -= push
+          b.right -= push
+          a.left += push
+          a.right += push
+        }
         moved = true
       }
     }
