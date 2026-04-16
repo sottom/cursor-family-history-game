@@ -1,6 +1,15 @@
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import { createInitialAppState, createNewPerson, PERSON_CARD_H, SPOUSE_PAIR_SPACING_X } from '../state/appState'
+import { createInitialAppState, createNewPerson } from '../state/appState'
+import { layoutDagre } from '../layout/layoutDagre'
 
+/**
+ * Loads a sample blended-family tree that exercises the layout's
+ * ability to group children under their correct parent pairs:
+ *
+ *   Suzanna --- Marne --- Courtney
+ *      |    |          |
+ *    Jack  Sophia    Hazel
+ */
 export default function SampleLoader() {
   const state = useAppState()
   const dispatch = useAppDispatch()
@@ -9,61 +18,50 @@ export default function SampleLoader() {
     const next = createInitialAppState()
     next.ui.hasSeenTour = state.ui.hasSeenTour
 
-    // Root couple: Root <-> Spouse, then 3 children connected to both parents.
-    const root = createNewPerson({ fullName: 'Alex Root', shortName: 'Alex' })
-    const spouse = createNewPerson({ fullName: 'Sam Spouse', shortName: 'Sam' })
+    const suzanna = createNewPerson({ fullName: 'Suzanna', shortName: 'Suzanna' })
+    const marne = createNewPerson({ fullName: 'Marne', shortName: 'Marne' })
+    const courtney = createNewPerson({ fullName: 'Courtney', shortName: 'Courtney' })
+    const jack = createNewPerson({ fullName: 'Jack', shortName: 'Jack' })
+    const sophia = createNewPerson({ fullName: 'Sophia', shortName: 'Sophia' })
+    const hazel = createNewPerson({ fullName: 'Hazel', shortName: 'Hazel' })
 
-    const spouseEdgeMarriage = { dateISO: '1900-06-01', location: 'Springfield' }
-    next.persons[root.id] = { ...root, marriages: [{ spouseId: spouse.id, ...spouseEdgeMarriage }] }
-    next.persons[spouse.id] = { ...spouse, marriages: [{ spouseId: root.id, ...spouseEdgeMarriage }] }
+    const marriageSM = { dateISO: '1990-06-15', location: undefined as string | undefined }
+    const marriageMC = { dateISO: '2005-09-20', location: undefined as string | undefined }
 
-    const x0 = 0
-    const y0 = 0
-    const spouseX = x0 + SPOUSE_PAIR_SPACING_X
+    next.persons[suzanna.id] = { ...suzanna, marriages: [{ spouseId: marne.id, ...marriageSM }] }
+    next.persons[marne.id] = {
+      ...marne,
+      marriages: [
+        { spouseId: suzanna.id, ...marriageSM },
+        { spouseId: courtney.id, ...marriageMC, isCurrent: true },
+      ],
+    }
+    next.persons[courtney.id] = { ...courtney, marriages: [{ spouseId: marne.id, ...marriageMC, isCurrent: true }] }
+    next.persons[jack.id] = jack
+    next.persons[sophia.id] = sophia
+    next.persons[hazel.id] = hazel
 
-    const childY = y0 + PERSON_CARD_H + 120
-    const xAvg = (x0 + spouseX) / 2
+    // Spouse edges
+    next.edges.push(
+      { id: crypto.randomUUID(), source: suzanna.id, target: marne.id, type: 'spouse', marriage: marriageSM },
+      { id: crypto.randomUUID(), source: marne.id, target: courtney.id, type: 'spouse', marriage: marriageMC },
+    )
 
-    const child1 = createNewPerson({ fullName: 'Casey Child 1', shortName: 'Casey 1' })
-    const child2 = createNewPerson({ fullName: 'Taylor Child 2', shortName: 'Taylor 2' })
-    const child3 = createNewPerson({ fullName: 'Jordan Child 3', shortName: 'Jordan 3' })
-
-    next.persons[child1.id] = child1
-    next.persons[child2.id] = child2
-    next.persons[child3.id] = child3
-
-    // Positions
-    next.nodePositions[root.id] = { x: x0, y: y0 }
-    next.nodePositions[spouse.id] = { x: spouseX, y: y0 }
-    next.nodePositions[child1.id] = { x: xAvg - 200, y: childY }
-    next.nodePositions[child2.id] = { x: xAvg, y: childY }
-    next.nodePositions[child3.id] = { x: xAvg + 200, y: childY }
-
-    // Edges
-    next.edges.push({
-      id: crypto.randomUUID(),
-      source: root.id,
-      target: spouse.id,
-      type: 'spouse',
-      marriage: spouseEdgeMarriage,
-    })
-
-    for (const child of [child1, child2, child3]) {
-      next.edges.push({
-        id: crypto.randomUUID(),
-        source: root.id,
-        target: child.id,
-        type: 'parent-child',
-      })
-      next.edges.push({
-        id: crypto.randomUUID(),
-        source: spouse.id,
-        target: child.id,
-        type: 'parent-child',
-      })
+    // Parent-child: Jack and Sophia belong to Suzanna + Marne
+    for (const child of [jack, sophia]) {
+      next.edges.push(
+        { id: crypto.randomUUID(), source: suzanna.id, target: child.id, type: 'parent-child' },
+        { id: crypto.randomUUID(), source: marne.id, target: child.id, type: 'parent-child' },
+      )
     }
 
-    next.selectedPersonIds = [root.id]
+    // Parent-child: Hazel belongs to Courtney only
+    next.edges.push(
+      { id: crypto.randomUUID(), source: courtney.id, target: hazel.id, type: 'parent-child' },
+    )
+
+    next.nodePositions = layoutDagre(next.persons, next.edges)
+    next.selectedPersonIds = [suzanna.id]
 
     dispatch({ type: 'SET_STATE', payload: { state: next } })
   }
@@ -74,4 +72,3 @@ export default function SampleLoader() {
     </button>
   )
 }
-
