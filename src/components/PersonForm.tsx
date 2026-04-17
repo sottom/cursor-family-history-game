@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import type { PersonDate } from '../state/appState'
+import PersonFormPhotoBlock from './PersonFormPhotoBlock'
 
 function DateLocationField({
   label,
@@ -79,7 +80,10 @@ export default function PersonForm() {
           </button>
         </div>
 
-        <div className="ftModal__body" style={{ display: 'grid', gap: 14 }}>
+        <div className="ftModal__body ftModal__body--person">
+          <div className="ftPersonFormLayout">
+            <PersonFormPhotoBlock personId={personId} />
+            <div className="ftPersonFormLayout__fields" style={{ display: 'grid', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 10 }}>
             <label style={{ display: 'grid', gap: 6 }}>
               <span style={{ fontSize: 12, color: 'var(--text)' }}>Full name</span>
@@ -190,6 +194,8 @@ export default function PersonForm() {
               ))}
             </div>
           ) : null}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,9 +1,9 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 
 import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import { ingestPersonPhotoBlob, getBlob } from '../storage/indexedDb'
+import { getBlob } from '../storage/indexedDb'
 import AddChildModal from './AddChildModal'
 import AddParentModal from './AddParentModal'
 
@@ -52,53 +52,12 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const mainUrl = useBlobUrl(person?.photoMain?.blobKey)
   const photoMainTransform: PhotoTransform = person?.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [childModalOpen, setChildModalOpen] = useState(false)
   const [parentModalOpen, setParentModalOpen] = useState(false)
   const [hoveredHandleKey, setHoveredHandleKey] = useState<string | null>(null)
 
   const closeChildModal = useCallback(() => setChildModalOpen(false), [])
   const closeParentModal = useCallback(() => setParentModalOpen(false), [])
-
-  // --- Photo handling ---
-
-  const setPhotoFromBlob = useCallback(
-    async (sourceBlob: Blob) => {
-      if (!person) return
-      const mainTransform = person.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
-      const thumbTransform = person.photoThumb?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
-      const mainRef = await ingestPersonPhotoBlob({ personId, variant: 'photoMain', sourceBlob, transform: mainTransform })
-      const thumbRef = await ingestPersonPhotoBlob({ personId, variant: 'photoThumb', sourceBlob, transform: thumbTransform })
-      dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { photoMain: mainRef, photoThumb: thumbRef } } })
-    },
-    [dispatch, person, personId],
-  )
-
-  const onFilesSelected = useCallback(
-    async (files: FileList | null) => {
-      const file = files?.[0]
-      if (file) await setPhotoFromBlob(file)
-    },
-    [setPhotoFromBlob],
-  )
-
-  useEffect(() => {
-    if (!selected) return
-    const onPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items
-      if (!items) return
-      for (const item of Array.from(items)) {
-        if (!item.type.startsWith('image/')) continue
-        const file = item.getAsFile()
-        if (!file) continue
-        void setPhotoFromBlob(file)
-        e.preventDefault()
-        break
-      }
-    }
-    window.addEventListener('paste', onPaste)
-    return () => window.removeEventListener('paste', onPaste)
-  }, [selected, setPhotoFromBlob])
 
   // --- Relationship actions ---
 
@@ -186,11 +145,6 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     },
     [dispatch, personId],
   )
-  const onOpenAdjustMain = useCallback(
-    () => dispatch({ type: 'OPEN_PHOTO_ADJUST', payload: { personId, variant: 'photoMain' } }),
-    [dispatch, personId],
-  )
-
   const displayName = useMemo(
     () => person?.shortName || person?.fullName || 'New Person',
     [person?.fullName, person?.shortName],
@@ -255,7 +209,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   return (
     <div
       className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''} ${dragging ? 'ftPersonCard--dragging' : ''}`}
-      title={!selected ? 'Click to select. Then use the toolbar to edit details, add family, or set photos.' : undefined}
+      title={!selected ? 'Click to select. Double-click to edit details and photos. Toolbar: add family.' : undefined}
       onDoubleClick={onCardDoubleClick}
       style={{
         width: PERSON_CARD_W,
@@ -399,15 +353,12 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           <button className="ftNodeBtn" onClick={addSpouse} type="button">+ Spouse</button>
           <button className="ftNodeBtn" onClick={addChild} type="button">+ Child</button>
           <button className="ftNodeBtn" onClick={onOpenEdit} type="button">Edit</button>
-          <button className="ftNodeBtn" onClick={() => fileInputRef.current?.click()} type="button" aria-label="Set photo">Set Photo</button>
-          <button className="ftNodeBtn" onClick={onOpenAdjustMain} type="button">Adjust Photo</button>
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => void onFilesSelected(e.target.files)} />
         </div>
       )}
 
       {!toolbarVisible && (
         <div className="ftPersonCard__tooltip" aria-hidden="true">
-          Click to select, then edit, add family, or set photos.
+          Click to select, double-click to edit (photos and details), or add family from the toolbar.
         </div>
       )}
 

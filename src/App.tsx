@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import FamilyCanvas from './components/FamilyCanvas'
 import { AppProvider, usePersistStatus } from './state/AppProvider'
 import PersonForm from './components/PersonForm'
-import PhotoAdjustOverlay from './components/PhotoAdjustOverlay'
 import ExportDrawer from './components/ExportDrawer'
 import OnboardingTourOverlay from './components/OnboardingTourOverlay'
 import SampleLoader from './components/SampleLoader'
@@ -60,7 +59,6 @@ function AppShell() {
         {/* Modals driven by AppState (no auth / all local) */}
       <OnboardingTourOverlay />
       <PersonForm />
-      <PhotoAdjustOverlay />
     </div>
   )
 }

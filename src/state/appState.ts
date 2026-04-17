@@ -65,7 +65,6 @@ export type AppState = {
   ui: {
     hasSeenTour: boolean
     personForm: { personId: string } | null
-    photoAdjust: { personId: string; variant: 'photoMain' | 'photoThumb' } | null
     groupingOverrides: Partial<Record<GroupingKind, { boundaries: [number, number, number] }>>
   }
 }
@@ -138,13 +137,6 @@ export type AppAction =
       type: 'CLOSE_PERSON_FORM'
     }
   | {
-      type: 'OPEN_PHOTO_ADJUST'
-      payload: { personId: string; variant: 'photoMain' | 'photoThumb' }
-    }
-  | {
-      type: 'CLOSE_PHOTO_ADJUST'
-    }
-  | {
       type: 'SET_STATE'
       payload: { state: AppState }
     }
@@ -174,7 +166,6 @@ export function createInitialAppState(): AppState {
     ui: {
       hasSeenTour: false,
       personForm: null,
-      photoAdjust: null,
       groupingOverrides: {},
     },
   }
@@ -439,13 +430,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, ui: { ...state.ui, personForm: { personId: action.payload.personId } } }
     case 'CLOSE_PERSON_FORM':
       return { ...state, ui: { ...state.ui, personForm: null } }
-    case 'OPEN_PHOTO_ADJUST':
-      return {
-        ...state,
-        ui: { ...state.ui, photoAdjust: { personId: action.payload.personId, variant: action.payload.variant } },
-      }
-    case 'CLOSE_PHOTO_ADJUST':
-      return { ...state, ui: { ...state.ui, photoAdjust: null } }
     case 'SET_STATE':
       return action.payload.state
     default:

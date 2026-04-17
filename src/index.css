@@ -406,6 +406,180 @@ code {
   padding: 14px;
 }
 
+.ftModal__body--person {
+  max-height: min(78vh, 900px);
+  overflow: auto;
+}
+
+.ftPersonFormLayout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .ftPersonFormLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ftPersonFormPhoto {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg), transparent 4%);
+  box-shadow: var(--shadow);
+}
+
+.ftPersonFormPhoto__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ftPersonFormPhoto__title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-h);
+  letter-spacing: 0.02em;
+}
+
+.ftPersonFormPhoto__hint {
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.88;
+  line-height: 1.3;
+}
+
+.ftPersonFormPhoto__seg {
+  display: flex;
+  gap: 0;
+  padding: 2px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg), transparent 10%);
+}
+
+.ftPersonFormPhoto__segBtn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ftPersonFormPhoto__segBtn--active {
+  background: var(--accent-bg);
+  color: var(--text-h);
+  box-shadow: 0 1px 2px rgba(45, 28, 12, 0.08);
+}
+
+.ftPersonFormPhoto__frameNote {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.9;
+}
+
+.ftPersonFormPhoto__frameWrap {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+}
+
+.ftPersonFormPhoto__frame {
+  position: relative;
+  width: min(220px, 100%);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 30%);
+  background: color-mix(in srgb, var(--canvas-bg), transparent 44%);
+  user-select: none;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 46, 0.06);
+  padding: 10px;
+}
+
+.ftPersonFormPhoto__frame--node {
+  /* Must match PersonNode outer card — do not inherit square aspect-ratio from .ftPersonFormPhoto__frame */
+  aspect-ratio: unset;
+  max-width: none;
+  box-sizing: border-box;
+  border-radius: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ftPersonFormPhoto__frameViewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--canvas-bg), transparent 35%);
+}
+
+.ftPersonFormPhoto__imgShift {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.ftPersonFormPhoto__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ftPersonFormPhoto__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0.65;
+}
+
+.ftPersonFormPhoto__frameShine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 46, 0.12);
+}
+
+.ftPersonFormPhoto__controlsHint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.88;
+}
+
+.ftPersonFormPhoto__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ftPersonFormPhoto__file {
+  display: none;
+}
+
 .ftNodeBtn {
   border-radius: 10px;
   border: 1px solid var(--border);
