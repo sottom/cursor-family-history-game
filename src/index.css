@@ -147,6 +147,41 @@ code {
   gap: 2px;
 }
 
+.ftLineLegend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.ftLineLegend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ftLineLegend__swatch {
+  width: 50px;
+  height: 0;
+  border-top: 4px solid;
+  border-top-color: currentColor;
+  opacity: 0.95;
+  flex: 0 0 auto;
+}
+
+.ftLineLegend__swatch--parentChild {
+  color: #8e7f63;
+}
+
+.ftLineLegend__swatch--marriage {
+  color: #a822e5;
+  border-top-style: dashed;
+}
+
 .ftTitle {
   font-family: var(--heading);
   font-weight: 600;
@@ -165,6 +200,17 @@ code {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+@media (max-width: 960px) {
+  .ftTopbar {
+    align-items: flex-start;
+  }
+
+  .ftTopbar__right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 }
 
 .ftSaveStatus {

@@ -21,6 +21,16 @@ function AppShell() {
           <div className="ftTopbar__left">
             <div className="ftTitle">Family Tree Cards</div>
             <div className="ftSubtitle">Build cards, position photos, export for print.</div>
+            <div className="ftLineLegend" aria-label="Connection legend">
+              <span className="ftLineLegend__item">
+                <span className="ftLineLegend__swatch ftLineLegend__swatch--parentChild" aria-hidden="true" />
+                Parent-Child
+              </span>
+              <span className="ftLineLegend__item">
+                <span className="ftLineLegend__swatch ftLineLegend__swatch--marriage" aria-hidden="true" />
+                Marriage
+              </span>
+            </div>
           </div>
 
           <div className="ftTopbar__right">

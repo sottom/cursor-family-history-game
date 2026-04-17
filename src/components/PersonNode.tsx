@@ -179,7 +179,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   )
 
   const displayName = useMemo(
-    () => person?.fullName || person?.shortName || 'New Person',
+    () => person?.shortName || person?.fullName || 'New Person',
     [person?.fullName, person?.shortName],
   )
 
