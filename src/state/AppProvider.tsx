@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useS
 
 import type { AppAction, AppState } from './appState'
 import { appReducer, createInitialAppState } from './appState'
+import { buildFourGenerationSampleState } from './defaultSampleTree'
 import { loadAppState, saveAppState } from '../storage/indexedDb'
 
 const AppStateContext = createContext<AppState | null>(null)
@@ -23,6 +24,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return
       if (loaded) {
         dispatch({ type: 'SET_STATE', payload: { state: loaded } })
+      } else {
+        dispatch({ type: 'SET_STATE', payload: { state: buildFourGenerationSampleState() } })
       }
       didHydrateRef.current = true
     })()

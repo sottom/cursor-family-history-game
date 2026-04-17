@@ -1,15 +1,35 @@
 import type { Edge, NodePosition } from '../state/appState'
 import { PERSON_CARD_W } from '../state/appState'
 
-/** 0 = left (25%), 1 = center (50%), 2 = right (75%) — bottom `parent-N` source handles only; child top uses a single `child` target. */
+/**
+ * 0 = left (25%), 1 = center (50%), 2 = right (75%) — bottom `parent-N` source handles; child top uses `child`.
+ *
+ * Default: **center** (1) when every child of this parent is a **joint** child with that parent’s spouse
+ * (typical married couple → shared kids, lines from the middle of the bottom).
+ *
+ * If **any** child is **not** joint (only this parent, or other parent isn’t the spouse), fan lines across
+ * the three bottom dots using horizontal alignment to each child (previous behavior).
+ */
 export function lineageSlotIndex(
   edge: Edge,
-  _edges: Edge[],
+  edges: Edge[],
   nodePositions: Record<string, NodePosition>,
 ): 0 | 1 | 2 {
   if (edge.type !== 'parent-child') return 1
   const parentId = edge.source
   const childId = edge.target
+
+  const childrenOfParent: string[] = []
+  for (const e of edges) {
+    if (e.type === 'parent-child' && e.source === parentId) childrenOfParent.push(e.target)
+  }
+
+  const anyExclusive = childrenOfParent.some((cid) => !isJointChildWithSpouse(parentId, cid, edges))
+
+  if (!anyExclusive) {
+    return 1
+  }
+
   const pCx = (nodePositions[parentId]?.x ?? 0) + PERSON_CARD_W / 2
   const cCx = (nodePositions[childId]?.x ?? 0) + PERSON_CARD_W / 2
   const dx = cCx - pCx

@@ -31,6 +31,8 @@ export type Person = {
   notes?: string
   photoMain?: PhotoRef
   photoThumb?: PhotoRef
+  /** Bumps when portrait/thumbnail refs are updated (including same-key blob overwrite in IndexedDB). */
+  photoRevision?: number
 }
 
 export type EdgeType = 'parent-child' | 'spouse'
@@ -297,9 +299,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const { personId, patch } = action.payload
       const existing = state.persons[personId]
       if (!existing) return state
+      const merged: Person = { ...existing, ...patch }
+      if (patch.photoMain !== undefined || patch.photoThumb !== undefined) {
+        merged.photoRevision = (existing.photoRevision ?? 0) + 1
+      }
       return {
         ...state,
-        persons: { ...state.persons, [personId]: { ...existing, ...patch } },
+        persons: { ...state.persons, [personId]: merged },
       }
     }
     case 'REMOVE_PERSON': {

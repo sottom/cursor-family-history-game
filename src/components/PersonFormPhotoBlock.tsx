@@ -125,7 +125,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
     draftThumbRef.current = t
     initialMainRef.current = m
     initialThumbRef.current = t
-  }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey])
+  }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey, person?.photoRevision])
 
   useEffect(() => {
     onDraftTransformsChange?.(draftMain, draftThumb)
@@ -176,7 +176,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [framingVariant, personId, photoRef?.blobKey])
+  }, [framingVariant, personId, photoRef?.blobKey, person?.photoRevision])
 
   const frameRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{

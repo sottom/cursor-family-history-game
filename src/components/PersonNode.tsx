@@ -10,30 +10,31 @@ import AddParentModal from './AddParentModal'
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
 
-const blobUrlCache = new Map<string, string>()
 const STATUS_DOT_COUNT = 3
 
-function useBlobUrl(blobKey?: string) {
-  const [url, setUrl] = useState<string | null>(() =>
-    blobKey ? blobUrlCache.get(blobKey) ?? null : null,
-  )
+/** Loads portrait bytes; `contentRevision` busts cache when IndexedDB is overwritten under the same blob key. */
+function useBlobUrl(blobKey: string | undefined, contentRevision: number | undefined) {
+  const [url, setUrl] = useState<string | null>(null)
+  const rev = contentRevision ?? 0
 
   useEffect(() => {
-    if (!blobKey) return
-    if (blobUrlCache.has(blobKey)) {
-      setUrl(blobUrlCache.get(blobKey) ?? null)
+    if (!blobKey) {
+      setUrl(null)
       return
     }
     let cancelled = false
+    let objectUrl: string | null = null
     ;(async () => {
       const blob = await getBlob(blobKey)
       if (!blob || cancelled) return
-      const objectUrl = URL.createObjectURL(blob)
-      blobUrlCache.set(blobKey, objectUrl)
+      objectUrl = URL.createObjectURL(blob)
       if (!cancelled) setUrl(objectUrl)
     })()
-    return () => { cancelled = true }
-  }, [blobKey])
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [blobKey, rev])
 
   return url
 }
@@ -49,7 +50,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const isSingleSelected = selected && state.selectedPersonIds.length === 1
   const toolbarVisible = isSingleSelected && !dragging
 
-  const mainUrl = useBlobUrl(person?.photoMain?.blobKey)
+  const mainUrl = useBlobUrl(person?.photoMain?.blobKey, person?.photoRevision)
   const photoMainTransform: PhotoTransform = person?.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
   const [childModalOpen, setChildModalOpen] = useState(false)

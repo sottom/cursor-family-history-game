@@ -10,6 +10,8 @@ type Props = {
   /** Live framing from the photo editor (before modal save). Falls back to saved person data. */
   mainTransform?: PhotoTransform
   thumbTransform?: PhotoTransform
+  /** Bumped when new image bytes are stored under the same blob keys (paste / file replace). */
+  photoBlobRevision?: number
   /** Narrow column beside the form: tighter copy, no “jump to photo” (card stays in view). */
   layout?: 'default' | 'aside'
 }
@@ -97,7 +99,7 @@ function IconRings() {
   )
 }
 
-function useMainPortraitUrl(blobKey: string | undefined) {
+function useMainPortraitUrl(blobKey: string | undefined, blobRevision: number) {
   const [url, setUrl] = useState<string | null>(null)
   const urlRef = useRef<string | null>(null)
   useEffect(() => {
@@ -124,11 +126,11 @@ function useMainPortraitUrl(blobKey: string | undefined) {
         urlRef.current = null
       }
     }
-  }, [blobKey])
+  }, [blobKey, blobRevision])
   return url
 }
 
-function useThumbPortraitUrl(personId: string, thumbBlobKey: string | undefined) {
+function useThumbPortraitUrl(personId: string, thumbBlobKey: string | undefined, blobRevision: number) {
   const [url, setUrl] = useState<string | null>(null)
   const urlRef = useRef<string | null>(null)
   useEffect(() => {
@@ -155,7 +157,7 @@ function useThumbPortraitUrl(personId: string, thumbBlobKey: string | undefined)
         urlRef.current = null
       }
     }
-  }, [personId, thumbBlobKey])
+  }, [personId, thumbBlobKey, blobRevision])
   return url
 }
 
@@ -165,6 +167,7 @@ export default function PersonPrintCardPreview({
   personId,
   mainTransform,
   thumbTransform,
+  photoBlobRevision = 0,
   layout = 'default',
 }: Props) {
   const state = useAppState()
@@ -176,8 +179,8 @@ export default function PersonPrintCardPreview({
   const mainKey = person?.photoMain?.blobKey
   const thumbKey = person?.photoThumb?.blobKey
 
-  const mainUrl = useMainPortraitUrl(mainKey)
-  const thumbUrl = useThumbPortraitUrl(personId, thumbKey)
+  const mainUrl = useMainPortraitUrl(mainKey, photoBlobRevision)
+  const thumbUrl = useThumbPortraitUrl(personId, thumbKey, photoBlobRevision)
 
   const displayName = useMemo(
     () => person?.fullName || person?.shortName || 'Name',
