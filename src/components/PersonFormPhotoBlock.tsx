@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import type { Person } from '../state/appState'
-import { PERSON_CARD_H, PERSON_CARD_W, type PhotoRef, type PhotoTransform } from '../state/appState'
+import {
+  PERSON_CARD_H,
+  PERSON_CARD_W,
+  PERSON_MAIN_OVAL_BOTTOM_INSET,
+  type PhotoRef,
+  type PhotoTransform,
+} from '../state/appState'
 import { getBlob, getOriginalBlobKey, ingestPersonPhotoBlob } from '../storage/indexedDb'
 
 type FramingVariant = 'photoMain' | 'photoThumb'
@@ -29,7 +35,7 @@ const CANVAS_OVAL_SHELL: CSSProperties = {
   left: 0,
   right: 0,
   top: 0,
-  bottom: 44,
+  bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
   borderRadius: '50%',
   overflow: 'hidden',
   border: '3px solid #1b0f0f',

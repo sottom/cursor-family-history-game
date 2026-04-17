@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAppState } from '../state/AppProvider'
-import type { PhotoTransform } from '../state/appState'
+import { PERSON_MAIN_OVAL_ASPECT_RATIO, type PhotoTransform } from '../state/appState'
 import { getBlob, getOriginalBlobKey } from '../storage/indexedDb'
 import { formatDateForPrintBadge, pickMarriageForPrintPreview } from '../utils/printCardDates'
 
@@ -234,7 +234,10 @@ export default function PersonPrintCardPreview({
               </div>
 
               <div className="ftPrintCard__ovalWrap">
-                <div className="ftPrintCard__oval">
+                <div
+                  className="ftPrintCard__oval"
+                  style={{ aspectRatio: PERSON_MAIN_OVAL_ASPECT_RATIO, height: 'auto' }}
+                >
                   <PhotoInFrame transform={mainT} url={mainUrl} emptyLabel="Portrait" borderRadius="50%" />
                 </div>
               </div>

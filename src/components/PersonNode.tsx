@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
 import { Fragment, useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react'
 
-import { type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
+import { type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, PERSON_MAIN_OVAL_BOTTOM_INSET } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { getBlob, ingestPersonPhotoBlob } from '../storage/indexedDb'
 import { getLibraryPhotoDragId, resolveLibraryPhotoIdFromDrop, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
@@ -186,7 +186,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           left: 0,
           right: 0,
           top: 0,
-          bottom: 44,
+          bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
           borderRadius: '50%',
           overflow: 'hidden',
           border: '3px solid #1b0f0f',

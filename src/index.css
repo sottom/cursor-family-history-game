@@ -1078,7 +1078,8 @@ code {
 
 .ftPrintCard__upper {
   position: relative;
-  min-height: 248px;
+  /* Oval uses same aspect as tree card portrait; height scales with width (~269px at 200px wide). */
+  min-height: 292px;
   padding: 12px 14px 0;
   background: linear-gradient(180deg, #d4c8e8 0%, #c9badc 55%, #bfaecc 100%);
 }
@@ -1104,8 +1105,9 @@ code {
 }
 
 .ftPrintCard__oval {
+  box-sizing: border-box;
   width: 200px;
-  height: 248px;
+  max-width: 100%;
   border-radius: 50%;
   border: 3px solid #1a1530;
   overflow: hidden;

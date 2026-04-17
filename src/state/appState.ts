@@ -85,6 +85,10 @@ export type DistributeMode = 'h' | 'v'
 // Placeholder card dimensions. These must match `PersonNode` in canvas for perfect alignment.
 export const PERSON_CARD_W = 220
 export const PERSON_CARD_H = 340
+/** Bottom inset for the main portrait oval on tree cards (name bar + status row). */
+export const PERSON_MAIN_OVAL_BOTTOM_INSET = 44
+/** Border-box aspect ratio of that oval — use for print preview so framing matches the adjuster. */
+export const PERSON_MAIN_OVAL_ASPECT_RATIO = `${PERSON_CARD_W} / ${PERSON_CARD_H - PERSON_MAIN_OVAL_BOTTOM_INSET}`
 export const SPOUSE_GAP = 28
 export const SPOUSE_PAIR_SPACING_X = PERSON_CARD_W + SPOUSE_GAP
 
