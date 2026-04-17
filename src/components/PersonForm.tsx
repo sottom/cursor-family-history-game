@@ -75,7 +75,7 @@ export default function PersonForm() {
       main: person.photoMain?.transform ?? DEFAULT_PHOTO_T,
       thumb: person.photoThumb?.transform ?? DEFAULT_PHOTO_T,
     })
-  }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey, person?.photoRevision])
+  }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey, person?.photoRevision ?? 0])
 
   const onPhotoDraftTransformsChange = useCallback((main: PhotoTransform, thumb: PhotoTransform) => {
     setLivePhotoTransforms({ main, thumb })

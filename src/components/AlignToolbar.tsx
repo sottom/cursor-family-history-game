@@ -16,20 +16,22 @@ export default function AlignToolbar() {
   const dispatch = useAppDispatch()
 
   const selected = state.selectedPersonIds
-  if (selected.length < 2) return null
-
-  const align = (mode: AlignMode) => dispatch({ type: 'ALIGN_SELECTED', payload: { mode, personIds: selected } })
-  const distribute = (axis: DistributeMode) =>
-    dispatch({ type: 'DISTRIBUTE_SELECTED', payload: { axis, personIds: selected } })
 
   useEffect(() => {
+    if (selected.length < 2) return
+    const personIds = selected
+    const align = (mode: AlignMode) =>
+      dispatch({ type: 'ALIGN_SELECTED', payload: { mode, personIds } })
+    const distribute = (axis: DistributeMode) =>
+      dispatch({ type: 'DISTRIBUTE_SELECTED', payload: { axis, personIds } })
+
     const onKeyDown = (e: KeyboardEvent) => {
       // Don't hijack keys while editing inputs.
       const target = e.target as HTMLElement | null
       const tag = target?.tagName?.toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return
 
-      if (selected.length < 2) return
+      if (personIds.length < 2) return
 
       switch (e.key) {
         case '1':
@@ -60,7 +62,13 @@ export default function AlignToolbar() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [align, distribute, selected.length])
+  }, [dispatch, selected])
+
+  if (selected.length < 2) return null
+
+  const align = (mode: AlignMode) => dispatch({ type: 'ALIGN_SELECTED', payload: { mode, personIds: selected } })
+  const distribute = (axis: DistributeMode) =>
+    dispatch({ type: 'DISTRIBUTE_SELECTED', payload: { axis, personIds: selected } })
 
   return (
     <div
