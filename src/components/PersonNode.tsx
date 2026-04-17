@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 
 import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
@@ -173,6 +173,19 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     () => dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId } }),
     [dispatch, personId],
   )
+
+  const onCardDoubleClick = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return
+      const el = e.target as HTMLElement
+      if (el.closest('.react-flow__handle')) return
+      if (el.closest('.ftPersonCard__toolbar')) return
+      e.stopPropagation()
+      dispatch({ type: 'SET_SELECTED', payload: { personIds: [personId] } })
+      dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId } })
+    },
+    [dispatch, personId],
+  )
   const onOpenAdjustMain = useCallback(
     () => dispatch({ type: 'OPEN_PHOTO_ADJUST', payload: { personId, variant: 'photoMain' } }),
     [dispatch, personId],
@@ -243,6 +256,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     <div
       className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''} ${dragging ? 'ftPersonCard--dragging' : ''}`}
       title={!selected ? 'Click to select. Then use the toolbar to edit details, add family, or set photos.' : undefined}
+      onDoubleClick={onCardDoubleClick}
       style={{
         width: PERSON_CARD_W,
         height: PERSON_CARD_H,
