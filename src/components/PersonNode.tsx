@@ -4,20 +4,14 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { ingestPersonPhotoBlob, getBlob } from '../storage/indexedDb'
-import { PHOTO_MAIN_FRAME, PHOTO_THUMB_FRAME } from '../config/cardLayout'
 import AddChildModal from './AddChildModal'
 import AddParentModal from './AddParentModal'
 
-type PersonNodeData = { personId: string }
+type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
 
-function fmtDateOrEmpty(dateISO?: string) {
-  if (!dateISO) return ''
-  if (dateISO.length >= 4) return dateISO.slice(0, 10)
-  return dateISO
-}
-
 const blobUrlCache = new Map<string, string>()
+const STATUS_DOT_COUNT = 3
 
 function useBlobUrl(blobKey?: string) {
   const [url, setUrl] = useState<string | null>(() =>
@@ -45,7 +39,7 @@ function useBlobUrl(blobKey?: string) {
 }
 
 export default function PersonNode(props: NodeProps<PersonNodeType>) {
-  const { personId } = props.data
+  const { personId, isNewlyAdded } = props.data
   const state = useAppState()
   const dispatch = useAppDispatch()
   const person = state.persons[personId]
@@ -56,9 +50,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const toolbarVisible = isSingleSelected && !dragging
 
   const mainUrl = useBlobUrl(person?.photoMain?.blobKey)
-  const thumbUrl = useBlobUrl(person?.photoThumb?.blobKey)
   const photoMainTransform: PhotoTransform = person?.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
-  const photoThumbTransform: PhotoTransform = person?.photoThumb?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [childModalOpen, setChildModalOpen] = useState(false)
@@ -186,19 +178,10 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     [dispatch, personId],
   )
 
-  const marriageSummary = useMemo(() => {
-    if (!person?.marriages?.length) return 'Marriages: \u2014'
-    const lines = person.marriages.slice(0, 2).map((m) => {
-      const spouse = state.persons[m.spouseId]
-      const name = spouse?.shortName || spouse?.fullName || m.spouseId
-      const d = fmtDateOrEmpty(m.dateISO)
-      const loc = m.location ? ` \u2022 ${m.location}` : ''
-      const cur = m.isCurrent ? ' \u2713' : ''
-      return `${name}${cur}${d ? ` (${d})` : ''}${loc}`
-    })
-    const extra = person.marriages.length > 2 ? ` (+${person.marriages.length - 2} more)` : ''
-    return `Marriages: ${lines.join('; ')}${extra}`
-  }, [person?.marriages, state.persons])
+  const displayName = useMemo(
+    () => person?.fullName || person?.shortName || 'New Person',
+    [person?.fullName, person?.shortName],
+  )
 
   /** Visible hit targets; must sit above card content (z-index) so they show and receive drags. */
   const hz = {
@@ -258,58 +241,125 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
 
   return (
     <div
-      className={`ftPersonCard ${selected ? 'selected' : ''}`}
+      className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''}`}
       title={!selected ? 'Click to select. Then use the toolbar to edit details, add family, or set photos.' : undefined}
       style={{
         width: PERSON_CARD_W,
         height: PERSON_CARD_H,
         boxSizing: 'border-box',
-        borderRadius: 14,
-        border: '2px solid var(--card-border)',
-        boxShadow: selected
-          ? 'var(--card-shadow), 0 0 0 3px var(--accent-bg)'
-          : 'var(--card-shadow), 0 0 0 3px transparent',
-        background: 'var(--card-bg)',
-        overflow: 'visible',
         position: 'relative',
       }}
     >
-      {/* Thumbnail photo */}
+      {/* Oval portrait */}
       <div
         style={{
           position: 'absolute',
-          left: PHOTO_THUMB_FRAME.x, top: PHOTO_THUMB_FRAME.y,
-          width: PHOTO_THUMB_FRAME.w, height: PHOTO_THUMB_FRAME.h,
-          borderRadius: 12, overflow: 'hidden',
-          border: '1px solid color-mix(in srgb, var(--card-border), transparent 35%)',
-          background: 'color-mix(in srgb, var(--text-h), transparent 97%)',
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 44,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: '3px solid #1b0f0f',
+          background: '#d5c2a7',
           pointerEvents: 'none',
+          boxShadow: selected
+            ? 'var(--card-shadow), 0 0 0 4px var(--accent-bg)'
+            : 'var(--card-shadow)',
         }}
       >
-        <div style={{ width: '100%', height: '100%', transform: `translate(${photoThumbTransform.xPercent}%, ${photoThumbTransform.yPercent}%)` }}>
-          {thumbUrl && (
-            <img src={thumbUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${photoThumbTransform.scale})` }} />
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            transform: `translate(${photoMainTransform.xPercent}%, ${photoMainTransform.yPercent}%)`,
+          }}
+        >
+          {mainUrl ? (
+            <img
+              src={mainUrl}
+              alt=""
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: `scale(${photoMainTransform.scale})`,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'grid',
+                placeItems: 'center',
+                color: '#1b0f0f',
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: 0.2,
+              }}
+            >
+              NO PHOTO
+            </div>
           )}
         </div>
       </div>
 
-      {/* Main photo */}
+      {/* Name bar */}
       <div
         style={{
           position: 'absolute',
-          left: PHOTO_MAIN_FRAME.x, top: PHOTO_MAIN_FRAME.y,
-          width: PHOTO_MAIN_FRAME.w, height: PHOTO_MAIN_FRAME.h,
-          borderRadius: 14, overflow: 'hidden',
-          border: '1px solid color-mix(in srgb, var(--card-border), transparent 35%)',
-          background: 'color-mix(in srgb, var(--text-h), transparent 97%)',
+          left: 10,
+          right: 10,
+          bottom: 28,
+          height: 28,
+          background: '#150b0b',
+          color: '#fefefe',
+          borderRadius: 6,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          fontSize: 15,
+          fontWeight: 800,
+          lineHeight: 1,
+          padding: '0 8px',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
+          overflow: 'hidden',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
           pointerEvents: 'none',
         }}
       >
-        <div style={{ width: '100%', height: '100%', transform: `translate(${photoMainTransform.xPercent}%, ${photoMainTransform.yPercent}%)` }}>
-          {mainUrl && (
-            <img src={mainUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${photoMainTransform.scale})` }} />
-          )}
-        </div>
+        {displayName}
+      </div>
+
+      {/* Transparent status circles */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          bottom: 2,
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: 6,
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        {Array.from({ length: STATUS_DOT_COUNT }).map((_, idx) => (
+          <div
+            key={`${personId}-status-${idx}`}
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              border: '3px solid #1b0f0f',
+              background: 'transparent',
+            }}
+          />
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -343,38 +393,6 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       {/* Extracted modals */}
       {childModalOpen && <AddChildModal personId={personId} onClose={closeChildModal} />}
       {parentModalOpen && <AddParentModal personId={personId} onClose={closeParentModal} />}
-
-      {/* Text content */}
-      <div
-        style={{
-          position: 'absolute', left: 12, right: 12,
-          top: PHOTO_MAIN_FRAME.y + PHOTO_MAIN_FRAME.h + 8, bottom: 10,
-          overflow: 'hidden', pointerEvents: 'none',
-        }}
-      >
-        <div style={{ fontWeight: 900, color: 'var(--text-h)', fontSize: 14, lineHeight: 1.05 }}>
-          {person?.fullName || person?.shortName || 'New Person'}
-        </div>
-        {person?.shortName && person.shortName !== person.fullName && (
-          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text)', lineHeight: 1.2 }}>
-            Short: <span style={{ color: 'var(--text-h)', fontWeight: 700 }}>{person.shortName}</span>
-          </div>
-        )}
-        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text)', lineHeight: 1.25 }}>
-          Born: {fmtDateOrEmpty(person?.dob?.dateISO)} {person?.dob?.location ? `\u2022 ${person.dob.location}` : ''}
-        </div>
-        <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text)', lineHeight: 1.25 }}>
-          {marriageSummary}
-        </div>
-        <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text)', lineHeight: 1.25 }}>
-          Died: {fmtDateOrEmpty(person?.dod?.dateISO)} {person?.dod?.location ? `\u2022 ${person.dod.location}` : ''}
-        </div>
-        {person?.notes && (
-          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text)', opacity: 0.9, lineHeight: 1.2 }}>
-            {person.notes.slice(0, 155)}
-          </div>
-        )}
-      </div>
 
       {/* Lineage: one centered dot on top; three on the bottom. Sides = spouse. */}
       <Handle

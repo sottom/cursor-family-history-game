@@ -29,7 +29,7 @@ import { createNewPerson } from '../state/appState'
 import { childTargetHandleId, parentSourceHandleId } from '../utils/parentHandles'
 import { slotFromSpouseRightHandle, spouseSourceHandleId, spouseTargetHandleId } from '../utils/spouseHandles'
 
-type PersonNodeData = { personId: string }
+type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
 type PersonNodeType = Node<PersonNodeData, 'person'>
 
 /** Screen pixels — converted to flow units using zoom for consistent feel while panning/zooming */
@@ -82,7 +82,9 @@ function mergeDerivedEdgesWithSelection(derived: Edge[], selectedIds: Set<string
 export default function FamilyCanvas() {
   const state = useAppState()
   const dispatch = useAppDispatch()
-  const [isPlacingNode, setIsPlacingNode] = useState(false)
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const [newlyAddedNodeIds, setNewlyAddedNodeIds] = useState<Record<string, true>>({})
+  const newNodeHighlightTimeoutsRef = useRef<number[]>([])
 
   const nodeTypes = useMemo(() => ({ person: PersonNode }), [])
 
@@ -92,10 +94,10 @@ export default function FamilyCanvas() {
         id: person.id,
         type: 'person' as const,
         position: state.nodePositions[person.id] ?? { x: 0, y: 0 },
-        data: { personId: person.id },
+        data: { personId: person.id, isNewlyAdded: !!newlyAddedNodeIds[person.id] },
         draggable: true,
       })),
-    [state.persons, state.nodePositions],
+    [newlyAddedNodeIds, state.persons, state.nodePositions],
   )
 
   const [nodes, setNodes] = useState<PersonNodeType[]>(derivedNodes)
@@ -111,8 +113,14 @@ export default function FamilyCanvas() {
   const lastAlignedDragPositionsRef = useRef<Record<string, NodePosition>>({})
 
   useEffect(() => {
+    return () => {
+      for (const timeoutId of newNodeHighlightTimeoutsRef.current) window.clearTimeout(timeoutId)
+      newNodeHighlightTimeoutsRef.current = []
+    }
+  }, [])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setIsPlacingNode(false); return }
       if ((event.key === 'Backspace' || event.key === 'Delete') && state.selectedPersonIds.length > 0) {
         const tag = (event.target as HTMLElement | null)?.tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
@@ -294,6 +302,39 @@ export default function FamilyCanvas() {
     dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions: next } })
   }, [dispatch, state.edges, state.persons])
 
+  const addPersonInView = useCallback(() => {
+    const rf = getReactFlowInstance()
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    let x = 120
+    let y = 120
+
+    if (rf && canvasRect) {
+      const centerScreen = {
+        x: canvasRect.left + canvasRect.width / 2,
+        y: canvasRect.top + canvasRect.height / 2,
+      }
+      const centerFlow = rf.screenToFlowPosition(centerScreen)
+      x = centerFlow.x - PERSON_CARD_W / 2
+      y = centerFlow.y - PERSON_CARD_H / 2
+    }
+
+    const p = createNewPerson({ shortName: 'Person', fullName: '' })
+    dispatch({ type: 'ADD_PERSON', payload: { person: p, position: { x, y } } })
+    dispatch({ type: 'SET_SELECTED', payload: { personIds: [p.id] } })
+
+    setNewlyAddedNodeIds((prev) => ({ ...prev, [p.id]: true }))
+    const timeoutId = window.setTimeout(() => {
+      setNewlyAddedNodeIds((prev) => {
+        if (!prev[p.id]) return prev
+        const next = { ...prev }
+        delete next[p.id]
+        return next
+      })
+      newNodeHighlightTimeoutsRef.current = newNodeHighlightTimeoutsRef.current.filter((id) => id !== timeoutId)
+    }, 4000)
+    newNodeHighlightTimeoutsRef.current.push(timeoutId)
+  }, [dispatch])
+
   const onNodeDragStart = useCallback(() => {
     lastAlignedDragPositionsRef.current = {}
   }, [])
@@ -388,7 +429,7 @@ export default function FamilyCanvas() {
   )
 
   return (
-    <div className="ftCanvas">
+    <div className="ftCanvas" ref={canvasRef}>
       <AlignToolbar />
       <button
         className="ftBtn"
@@ -401,17 +442,18 @@ export default function FamilyCanvas() {
       </button>
       <div className="ftCanvas__actions">
         <button
-          className={`ftBtn ${isPlacingNode ? 'ftBtn--primary' : ''}`}
+          className="ftBtn"
           type="button"
-          onClick={() => setIsPlacingNode((prev) => !prev)}
+          onClick={addPersonInView}
         >
-          {isPlacingNode ? 'Cancel Add Person' : 'Add Person'}
+          Add Person
         </button>
-        <div className="ftCanvas__help">
-          {isPlacingNode
-            ? 'Click anywhere on the canvas to place the new card. Press Esc to cancel.'
-            : 'Drag from card edges to connect: top/bottom = parent–child, sides = marriage. Click a line and press Delete to remove it.'}
-        </div>
+        {state.selectedPersonIds.length < 2 && (
+          <div className="ftCanvas__help">
+            Drag from card edges to connect: top/bottom = parent–child, sides = marriage. Click a line and press
+            Delete to remove it.
+          </div>
+        )}
       </div>
       <ReactFlow
         nodes={nodes}
@@ -432,7 +474,7 @@ export default function FamilyCanvas() {
         edgesReconnectable={false}
         isValidConnection={isValidConnection}
         attributionPosition="bottom-left"
-        className={`ftReactFlow ${isPlacingNode ? 'ftReactFlow--placing' : 'ftReactFlow--browse'}`}
+        className="ftReactFlow ftReactFlow--browse"
         onInit={(instance) => setReactFlowInstance(instance)}
         onNodesChange={(changes: NodeChange[]) => {
           const removals = changes.filter((c) => c.type === 'remove')
@@ -456,17 +498,6 @@ export default function FamilyCanvas() {
           const ids = sel.map((n) => (n.data as PersonNodeData).personId)
           if (ids.length === state.selectedPersonIds.length && ids.every((id, i) => id === state.selectedPersonIds[i])) return
           dispatch({ type: 'SET_SELECTED', payload: { personIds: ids } })
-        }}
-        onPaneClick={(event) => {
-          if ((event.target as HTMLElement | null)?.closest('.react-flow__node')) return
-          if (!isPlacingNode) return
-          const rf = getReactFlowInstance()
-          if (!rf) return
-          const { x, y } = rf.screenToFlowPosition({ x: event.clientX, y: event.clientY })
-          const p = createNewPerson({ shortName: 'Person', fullName: '' })
-          dispatch({ type: 'ADD_PERSON', payload: { person: p, position: { x, y } } })
-          dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId: p.id } })
-          setIsPlacingNode(false)
         }}
       >
         <Background gap={18} size={1} />
