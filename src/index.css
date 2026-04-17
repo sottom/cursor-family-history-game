@@ -365,25 +365,39 @@ code {
 
 .ftModal {
   width: min(760px, 100%);
+  max-width: 100%;
   border-radius: 14px;
   background: var(--bg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+.ftModal--personEdit {
+  width: min(1080px, calc(100vw - 36px));
+  max-width: 100%;
 }
 
 .ftModal__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 14px 12px;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
 }
 
 .ftModal__title {
   font-weight: 700;
   color: var(--text-h);
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
+  padding-top: 2px;
 }
 
 .ftIconBtn {
@@ -408,17 +422,91 @@ code {
 
 .ftModal__body--person {
   max-height: min(78vh, 900px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Person edit modal: photo | fields | print preview (sticky on wide screens). */
+.ftPersonEditGrid {
+  display: grid;
+  grid-template-columns: minmax(0, min(280px, 34%)) minmax(0, 1fr) minmax(220px, 300px);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ftPersonEditGrid__photo,
+.ftPersonEditGrid__fields {
+  min-width: 0;
+}
+
+.ftPersonEditGrid__print {
+  min-width: 0;
+  position: sticky;
+  top: 4px;
+  align-self: start;
+  z-index: 2;
 }
 
 .ftPersonFormLayout {
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, min(300px, 42%)) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
-@media (max-width: 760px) {
+.ftPersonFormLayout__fields {
+  min-width: 0;
+}
+
+#ft-person-form-photo-anchor {
+  min-width: 0;
+}
+
+.ftPersonFormLayout__fields input,
+.ftPersonFormLayout__fields textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.ftPersonFormLayout__fields label {
+  min-width: 0;
+}
+
+@media (max-width: 1020px) {
+  .ftPersonEditGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .ftPersonEditGrid__print {
+    position: static;
+    z-index: auto;
+  }
+
+  /* Photo first, preview second so the card stays above the long form without scrolling. */
+  .ftPersonEditGrid__photo {
+    order: 1;
+  }
+
+  .ftPersonEditGrid__print {
+    order: 2;
+  }
+
+  .ftPersonEditGrid__fields {
+    order: 3;
+  }
+}
+
+@media (max-width: 900px) {
   .ftPersonFormLayout {
     grid-template-columns: 1fr;
   }
@@ -519,6 +607,17 @@ code {
   box-shadow: none;
 }
 
+/* Same circular crop + chrome as `.ftPrintCard__thumb` (scaled up for editing). */
+.ftPersonFormPhoto__frame--thumbCard {
+  width: min(168px, 100%);
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+}
+
 .ftPersonFormPhoto__frameViewport {
   position: relative;
   width: 100%;
@@ -527,6 +626,13 @@ code {
   overflow: hidden;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--canvas-bg), transparent 35%);
+}
+
+.ftPersonFormPhoto__frameViewport--thumbCard {
+  border-radius: 50%;
+  border: 2px solid #1e1a2e;
+  background: #d5c2a7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .ftPersonFormPhoto__imgShift {
@@ -560,6 +666,11 @@ code {
   inset: 0;
   pointer-events: none;
   box-shadow: inset 0 0 0 1px rgba(139, 92, 46, 0.12);
+}
+
+.ftPersonFormPhoto__frameShine--thumbCard {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(30, 26, 46, 0.15);
 }
 
 .ftPersonFormPhoto__controlsHint {
@@ -710,4 +821,225 @@ code {
 .ftAlignToolbar__group {
   display: grid;
   gap: 8px;
+}
+
+/* --- Keepsake print card preview (edit modal) --- */
+
+.ftPrintCardSection {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ftPrintCardSection--aside {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  gap: 10px;
+}
+
+.ftPrintCardSection__intro {
+  display: grid;
+  gap: 8px;
+}
+
+.ftPrintCardSection--aside .ftPrintCardSection__intro {
+  gap: 6px;
+}
+
+.ftPrintCardSection__title {
+  margin: 0;
+  font-family: var(--heading);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.ftPrintCardSection--aside .ftPrintCardSection__title {
+  font-size: 15px;
+}
+
+.ftPrintCardSection__blurb {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  max-width: 62ch;
+}
+
+.ftPrintCardSection__blurb--aside {
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: none;
+  opacity: 0.95;
+}
+
+.ftPrintCardSection__jump {
+  justify-self: start;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
+.ftPrintCardWrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ftPrintCard {
+  width: min(300px, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
+  filter: drop-shadow(0 10px 24px rgba(35, 22, 12, 0.14));
+}
+
+.ftPrintCard__plate {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid #2a2438;
+  background: #c4b8dc;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.ftPrintCard__upper {
+  position: relative;
+  min-height: 248px;
+  padding: 12px 14px 0;
+  background: linear-gradient(180deg, #d4c8e8 0%, #c9badc 55%, #bfaecc 100%);
+}
+
+.ftPrintCard__thumb {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid #1e1a2e;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  z-index: 2;
+  background: #d5c2a7;
+}
+
+.ftPrintCard__ovalWrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 12px 0;
+}
+
+.ftPrintCard__oval {
+  width: 200px;
+  height: 248px;
+  border-radius: 50%;
+  border: 3px solid #1a1530;
+  overflow: hidden;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  background: #d5c2a7;
+}
+
+.ftPrintCard__nameBanner {
+  position: relative;
+  z-index: 3;
+  margin: -36px auto 0;
+  max-width: 92%;
+  padding: 8px 14px 9px;
+  background: linear-gradient(180deg, #1f2a4a 0%, #151d38 100%);
+  border-radius: 4px;
+  clip-path: polygon(3% 0%, 97% 0%, 100% 50%, 97% 100%, 3% 100%, 0% 50%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+}
+
+.ftPrintCard__nameText {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #faf8ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ftPrintCard__lower {
+  padding: 14px 12px 16px;
+  background: linear-gradient(180deg, #efe6d8 0%, #e8dcc8 100%);
+  border-top: 1px solid rgba(42, 36, 56, 0.12);
+}
+
+.ftPrintCard__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.ftPrintCard__badge {
+  flex: 1 1 128px;
+  min-width: 0;
+  max-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 9px;
+  border-radius: 999px;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.ftPrintCard__badge--birth {
+  background: linear-gradient(180deg, #3d8f5c 0%, #2d6b44 100%);
+}
+
+.ftPrintCard__badge--marriage {
+  background: linear-gradient(180deg, #d4783c 0%, #b85a24 100%);
+}
+
+.ftPrintCard__badgeIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.95;
+}
+
+.ftPrintCard__badgeText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ftPrintCard__badgeYear {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.ftPrintCard__badgeSub {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.95;
+  line-height: 1.2;
+}
+
+@media (max-width: 520px) {
+  .ftPrintCard__badge {
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 calc(50% - 8px);
+  }
 }

@@ -84,7 +84,13 @@ const CANVAS_STATUS_DOT: CSSProperties = {
   background: 'transparent',
 }
 
-export default function PersonFormPhotoBlock({ personId }: { personId: string }) {
+type PersonFormPhotoBlockProps = {
+  personId: string
+  /** Fired whenever local portrait/thumbnail framing changes so print preview can mirror edits before save. */
+  onDraftTransformsChange?: (main: PhotoTransform, thumb: PhotoTransform) => void
+}
+
+export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange }: PersonFormPhotoBlockProps) {
   const state = useAppState()
   const dispatch = useAppDispatch()
   const person = state.persons[personId]
@@ -120,6 +126,10 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
     initialMainRef.current = m
     initialThumbRef.current = t
   }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey])
+
+  useEffect(() => {
+    onDraftTransformsChange?.(draftMain, draftThumb)
+  }, [draftMain, draftThumb, onDraftTransformsChange])
 
   /** On modal close, persist pending transforms so the canvas updates once. */
   useEffect(() => {
@@ -169,7 +179,6 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
   }, [framingVariant, personId, photoRef?.blobKey])
 
   const frameRef = useRef<HTMLDivElement | null>(null)
-  const wheelRootRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{
     startClientX: number
     startClientY: number
@@ -179,18 +188,19 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
     frameH: number
   } | null>(null)
 
+  /** Zoom only when the wheel is over the actual photo viewport (oval or circle), not the outer photo card. */
   useEffect(() => {
-    const overlayEl = wheelRootRef.current
-    if (!overlayEl) return
+    const el = frameRef.current
+    if (!el) return
 
     const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
       const p = personRef.current
       const variant = framingVariantRef.current
       const hasPhoto =
         variant === 'photoMain' ? !!p?.photoMain?.blobKey : !!p?.photoThumb?.blobKey
       if (!hasPhoto) return
+      e.preventDefault()
+      e.stopPropagation()
       const curr = draftRef.current
       const factor = Math.exp(-e.deltaY * 0.002)
       const nextScale = Math.max(0.15, Math.min(8, curr.scale * factor))
@@ -204,9 +214,9 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
       }
     }
 
-    overlayEl.addEventListener('wheel', onWheel, { passive: false })
-    return () => overlayEl.removeEventListener('wheel', onWheel)
-  }, [])
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [framingVariant])
 
   useEffect(() => {
     const onPointerMove = (e: PointerEvent) => {
@@ -286,7 +296,10 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
 
   if (!person) return null
 
-  const frameLabel = framingVariant === 'photoMain' ? 'Matches canvas card (220×340)' : 'Small thumbnail'
+  const frameLabel =
+    framingVariant === 'photoMain'
+      ? 'Matches canvas card (220×340)'
+      : 'Matches print card thumbnail (circular crop)'
 
   return (
     <div className="ftPersonFormPhoto">
@@ -303,7 +316,7 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
           aria-selected={framingVariant === 'photoMain'}
           onClick={() => setFramingVariant('photoMain')}
         >
-          Portrait
+          Portrait View
         </button>
         <button
           type="button"
@@ -312,12 +325,12 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
           aria-selected={framingVariant === 'photoThumb'}
           onClick={() => setFramingVariant('photoThumb')}
         >
-          Thumbnail
+          Thumbnail View
         </button>
       </div>
       <p className="ftPersonFormPhoto__frameNote">{frameLabel}</p>
 
-      <div ref={wheelRootRef} className="ftPersonFormPhoto__frameWrap">
+      <div className="ftPersonFormPhoto__frameWrap">
         {framingVariant === 'photoMain' ? (
           <div className="ftPersonFormPhoto__frame ftPersonFormPhoto__frame--node" style={CANVAS_CARD_SHELL}>
             <div
@@ -386,10 +399,10 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
             </div>
           </div>
         ) : (
-          <div className="ftPersonFormPhoto__frame">
+          <div className="ftPersonFormPhoto__frame ftPersonFormPhoto__frame--thumbCard">
             <div
               ref={frameRef}
-              className="ftPersonFormPhoto__frameViewport"
+              className="ftPersonFormPhoto__frameViewport ftPersonFormPhoto__frameViewport--thumbCard"
               style={{
                 touchAction: 'none',
               }}
@@ -426,7 +439,7 @@ export default function PersonFormPhotoBlock({ personId }: { personId: string })
                   <div className="ftPersonFormPhoto__empty">No photo yet</div>
                 )}
               </div>
-              <div className="ftPersonFormPhoto__frameShine" aria-hidden />
+              <div className="ftPersonFormPhoto__frameShine ftPersonFormPhoto__frameShine--thumbCard" aria-hidden />
             </div>
           </div>
         )}

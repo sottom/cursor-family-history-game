@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import type { PersonDate } from '../state/appState'
+import type { PersonDate, PhotoTransform } from '../state/appState'
 import PersonFormPhotoBlock from './PersonFormPhotoBlock'
+import PersonPrintCardPreview from './PersonPrintCardPreview'
 
 function DateLocationField({
   label,
@@ -18,7 +19,7 @@ function DateLocationField({
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ fontWeight: 700, color: 'var(--text-h)', fontSize: 13 }}>{label}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 12, color: 'var(--text)' }}>Date (ISO)</span>
           <input
@@ -42,12 +43,19 @@ function DateLocationField({
   )
 }
 
+const DEFAULT_PHOTO_T: PhotoTransform = { xPercent: 0, yPercent: 0, scale: 1 }
+
 export default function PersonForm() {
   const state = useAppState()
   const dispatch = useAppDispatch()
   const personId = state.ui.personForm?.personId
 
   const person = personId ? state.persons[personId] : undefined
+
+  const [livePhotoTransforms, setLivePhotoTransforms] = useState<{
+    main: PhotoTransform
+    thumb: PhotoTransform
+  } | null>(null)
 
   const title = useMemo(() => person?.fullName || person?.shortName || 'Person', [person])
 
@@ -61,6 +69,18 @@ export default function PersonForm() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [dispatch])
 
+  useEffect(() => {
+    if (!personId || !person) return
+    setLivePhotoTransforms({
+      main: person.photoMain?.transform ?? DEFAULT_PHOTO_T,
+      thumb: person.photoThumb?.transform ?? DEFAULT_PHOTO_T,
+    })
+  }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey])
+
+  const onPhotoDraftTransformsChange = useCallback((main: PhotoTransform, thumb: PhotoTransform) => {
+    setLivePhotoTransforms({ main, thumb })
+  }, [])
+
   if (!personId || !person) return null
 
   return (
@@ -72,7 +92,7 @@ export default function PersonForm() {
         if (e.target === e.currentTarget) dispatch({ type: 'CLOSE_PERSON_FORM' })
       }}
     >
-      <div className="ftModal" style={{ width: 'min(900px, 100%)' }}>
+      <div className="ftModal ftModal--personEdit">
         <div className="ftModal__header">
           <div className="ftModal__title">Edit Details: {title}</div>
           <button className="ftIconBtn" onClick={() => dispatch({ type: 'CLOSE_PERSON_FORM' })} aria-label="Close">
@@ -81,10 +101,12 @@ export default function PersonForm() {
         </div>
 
         <div className="ftModal__body ftModal__body--person">
-          <div className="ftPersonFormLayout">
-            <PersonFormPhotoBlock personId={personId} />
-            <div className="ftPersonFormLayout__fields" style={{ display: 'grid', gap: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 10 }}>
+          <div className="ftPersonEditGrid">
+            <div id="ft-person-form-photo-anchor" className="ftPersonEditGrid__photo" tabIndex={-1}>
+              <PersonFormPhotoBlock personId={personId} onDraftTransformsChange={onPhotoDraftTransformsChange} />
+            </div>
+            <div className="ftPersonEditGrid__fields ftPersonFormLayout__fields" style={{ display: 'grid', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: 10 }}>
             <label style={{ display: 'grid', gap: 6 }}>
               <span style={{ fontSize: 12, color: 'var(--text)' }}>Full name</span>
               <input
@@ -105,7 +127,7 @@ export default function PersonForm() {
             </label>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 12 }}>
             <DateLocationField
               label="Birth"
               value={person.dob}
@@ -162,7 +184,7 @@ export default function PersonForm() {
                       Current
                     </label>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
                     <label style={{ display: 'grid', gap: 6 }}>
                       <span style={{ fontSize: 12, color: 'var(--text)' }}>Marriage date</span>
                       <input
@@ -195,6 +217,14 @@ export default function PersonForm() {
             </div>
           ) : null}
             </div>
+            <aside className="ftPersonEditGrid__print" aria-label="Print card preview">
+              <PersonPrintCardPreview
+                personId={personId}
+                mainTransform={livePhotoTransforms?.main}
+                thumbTransform={livePhotoTransforms?.thumb}
+                layout="aside"
+              />
+            </aside>
           </div>
         </div>
       </div>

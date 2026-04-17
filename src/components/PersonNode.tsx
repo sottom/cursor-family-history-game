@@ -209,7 +209,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   return (
     <div
       className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''} ${dragging ? 'ftPersonCard--dragging' : ''}`}
-      title={!selected ? 'Click to select. Double-click to edit details and photos. Toolbar: add family.' : undefined}
+      title={!selected ? 'Click to select. Click + Drag to move. Double-click to edit.' : undefined}
       onDoubleClick={onCardDoubleClick}
       style={{
         width: PERSON_CARD_W,
@@ -358,7 +358,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
 
       {!toolbarVisible && (
         <div className="ftPersonCard__tooltip" aria-hidden="true">
-          Click to select, double-click to edit (photos and details), or add family from the toolbar.
+          Click to select. Click + Drag to move. Double-click to edit.
         </div>
       )}
 
