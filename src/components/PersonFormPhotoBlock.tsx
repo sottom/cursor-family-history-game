@@ -164,10 +164,9 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
         setBlobUrl(null)
         return
       }
+      // Prefer full-resolution `original:*` for framing (ingest downsamples photoMain/photoThumb for storage).
       const blob =
-        framingVariant === 'photoThumb'
-          ? ((await getBlob(getOriginalBlobKey(personId))) ?? (await getBlob(photoRef.blobKey)))
-          : await getBlob(photoRef.blobKey)
+        (await getBlob(getOriginalBlobKey(personId))) ?? (await getBlob(photoRef.blobKey))
       if (!blob || cancelled) return
       objectUrl = URL.createObjectURL(blob)
       if (!cancelled) setBlobUrl(objectUrl)
@@ -366,7 +365,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                     style={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
+                      objectFit: 'contain',
                       display: 'block',
                       transform: `scale(${draftMain.scale})`,
                     }}

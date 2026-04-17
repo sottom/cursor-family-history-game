@@ -14,7 +14,7 @@ const steps: TourStep[] = [
   },
   {
     title: 'Add photos & details',
-    body: 'Double-click a card to open details — add a photo (choose or paste) and adjust framing there.',
+    body: 'Double-click a card to open details, or use the photo tray on the right: import a folder, then drag a thumbnail onto a card. You can also choose or paste a photo in the editor.',
   },
   {
     title: 'Build relationships and export',

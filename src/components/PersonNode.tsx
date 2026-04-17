@@ -1,9 +1,10 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
-import { Fragment, useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react'
 
 import { type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import { getBlob } from '../storage/indexedDb'
+import { getBlob, ingestPersonPhotoBlob } from '../storage/indexedDb'
+import { getLibraryPhotoDragId, resolveLibraryPhotoIdFromDrop, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
 
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
@@ -61,6 +62,35 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId } })
     },
     [dispatch, personId],
+  )
+
+  const onLibraryDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    if (!getLibraryPhotoDragId()) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const onLibraryDrop = useCallback(
+    async (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const libId = resolveLibraryPhotoIdFromDrop(e.dataTransfer)
+      setLibraryPhotoDragId(null)
+      if (!libId || !person) return
+      const entry = state.photoLibrary.find((x) => x.id === libId)
+      if (!entry) return
+      const blob = await getBlob(entry.blobKey)
+      if (!blob) return
+      const transform = { xPercent: 0, yPercent: 0, scale: 1 }
+      try {
+        const mainRef = await ingestPersonPhotoBlob({ personId, variant: 'photoMain', sourceBlob: blob, transform })
+        const thumbRef = await ingestPersonPhotoBlob({ personId, variant: 'photoThumb', sourceBlob: blob, transform })
+        dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { photoMain: mainRef, photoThumb: thumbRef } } })
+      } catch (err) {
+        console.error('Could not apply library photo to this person', err)
+      }
+    },
+    [dispatch, person, personId, state.photoLibrary],
   )
   const displayName = useMemo(
     () => person?.shortName || person?.fullName || 'New Person',
@@ -126,8 +156,14 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   return (
     <div
       className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''} ${dragging ? 'ftPersonCard--dragging' : ''}`}
-      title={!selected ? 'Click to select · drag to move · double-click to edit · drag dots to connect' : undefined}
+      title={
+        !selected
+          ? 'Click to select · drag to move · double-click to edit · drag dots to connect · drop a tray photo here'
+          : undefined
+      }
       onDoubleClick={onCardDoubleClick}
+      onDragOver={onLibraryDragOver}
+      onDrop={onLibraryDrop}
       style={{
         width: PERSON_CARD_W,
         height: PERSON_CARD_H,
@@ -176,7 +212,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
+                objectFit: 'contain',
                 transform: `scale(${photoMainTransform.scale})`,
               }}
             />
@@ -261,7 +297,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       </div>
 
       <div className="ftPersonCard__tooltip" aria-hidden="true">
-        Select · drag to move · double-click to edit · drag handles to connect
+        Select · drag to move · double-click to edit · drag handles to connect · drop tray photo on card
       </div>
 
       {/* Lineage: one centered dot on top; three on the bottom. Sides = spouse. */}

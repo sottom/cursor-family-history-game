@@ -63,7 +63,7 @@ export default function PersonCardExport(props: {
             <img
               src={props.photoThumbUrl}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${thumb.scale})` }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', transform: `scale(${thumb.scale})` }}
             />
           ) : null}
         </div>
@@ -87,7 +87,7 @@ export default function PersonCardExport(props: {
             <img
               src={props.photoMainUrl}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${main.scale})` }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', transform: `scale(${main.scale})` }}
             />
           ) : null}
         </div>

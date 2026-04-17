@@ -1,6 +1,7 @@
 import localforage from 'localforage'
 
 import type { AppState, PhotoTransform, PhotoRef } from '../state/appState'
+import { decodeIfHeic } from '../utils/heicDecode'
 
 export type PhotoVariant = 'photoMain' | 'photoThumb'
 
@@ -20,6 +21,10 @@ const APP_INDEX_KEY = 'app:index'
 
 export function getPhotoBlobKey(personId: string, variant: PhotoVariant) {
   return `${variant}:${personId}`
+}
+
+export function getPhotoLibraryBlobKey(entryId: string) {
+  return `library:${entryId}`
 }
 
 export async function loadAppState(): Promise<AppState | null> {
@@ -64,7 +69,9 @@ async function ensureJpegBlob(source: Blob, maxDim: number, quality: number): Pr
     })
 
     const { width, height } = img
-    const scale = Math.min(1, maxDim / Math.max(width, height))
+    const longEdge = Math.max(width, height)
+    const scale =
+      !Number.isFinite(maxDim) || maxDim <= 0 ? 1 : Math.min(1, maxDim / longEdge)
     const outW = Math.max(1, Math.round(width * scale))
     const outH = Math.max(1, Math.round(height * scale))
 
@@ -107,13 +114,21 @@ export async function ingestPersonPhotoBlob(params: {
 
   const blobKey = getPhotoBlobKey(personId, variant)
 
-  const maxDim = variant === 'photoMain' ? 1600 : 300
-  const quality = 0.85
-  const jpeg = await ensureJpegBlob(sourceBlob, maxDim, quality)
-  await putBlob(blobKey, jpeg)
+  const workable = await decodeIfHeic(sourceBlob)
+  // Full pixel data for editing + export; refreshed on every ingest.
+  await putBlob(getOriginalBlobKey(personId), workable)
 
   if (variant === 'photoMain') {
-    await putBlob(getOriginalBlobKey(personId), sourceBlob)
+    // Portrait blob: native resolution — keep JPEG bytes as-is when already JPEG to avoid generational loss.
+    if (workable.type === 'image/jpeg') {
+      await putBlob(blobKey, workable)
+    } else {
+      const jpeg = await ensureJpegBlob(workable, Number.POSITIVE_INFINITY, 0.92)
+      await putBlob(blobKey, jpeg)
+    }
+  } else {
+    const jpeg = await ensureJpegBlob(workable, 300, 0.85)
+    await putBlob(blobKey, jpeg)
   }
 
   return {

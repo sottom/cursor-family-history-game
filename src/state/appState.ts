@@ -58,12 +58,20 @@ export type Edge = {
 
 export type NodePosition = { x: number; y: number }
 
+/** User-imported images; blobs stored in IndexedDB at `blobKey`. */
+export type PhotoLibraryEntry = {
+  id: string
+  name: string
+  blobKey: string
+}
+
 export type AppState = {
   version: 1
   persons: Record<string, Person>
   edges: Edge[]
   nodePositions: Record<string, NodePosition>
   selectedPersonIds: string[]
+  photoLibrary: PhotoLibraryEntry[]
   ui: {
     hasSeenTour: boolean
     personForm: { personId: string } | null
@@ -142,6 +150,11 @@ export type AppAction =
       type: 'SET_STATE'
       payload: { state: AppState }
     }
+  | {
+      type: 'ADD_PHOTO_LIBRARY_ITEMS'
+      payload: { entries: PhotoLibraryEntry[] }
+    }
+  | { type: 'CLEAR_PHOTO_LIBRARY' }
 
 export function createNewPerson(params?: Partial<Pick<Person, 'fullName' | 'shortName' | 'dob' | 'dod' | 'notes'>>): Person {
   const id = crypto.randomUUID()
@@ -158,6 +171,14 @@ export function createNewPerson(params?: Partial<Pick<Person, 'fullName' | 'shor
   }
 }
 
+/** Ensures newer fields exist when hydrating older saved state. */
+export function normalizeAppState(state: AppState): AppState {
+  return {
+    ...state,
+    photoLibrary: Array.isArray(state.photoLibrary) ? state.photoLibrary : [],
+  }
+}
+
 export function createInitialAppState(): AppState {
   return {
     version: 1,
@@ -165,6 +186,7 @@ export function createInitialAppState(): AppState {
     edges: [],
     nodePositions: {},
     selectedPersonIds: [],
+    photoLibrary: [],
     ui: {
       hasSeenTour: false,
       personForm: null,
@@ -437,7 +459,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'CLOSE_PERSON_FORM':
       return { ...state, ui: { ...state.ui, personForm: null } }
     case 'SET_STATE':
-      return action.payload.state
+      return normalizeAppState(action.payload.state)
+    case 'ADD_PHOTO_LIBRARY_ITEMS': {
+      const { entries } = action.payload
+      if (entries.length === 0) return state
+      return { ...state, photoLibrary: [...(state.photoLibrary ?? []), ...entries] }
+    }
+    case 'CLEAR_PHOTO_LIBRARY':
+      return { ...state, photoLibrary: [] }
     default:
       return state
   }

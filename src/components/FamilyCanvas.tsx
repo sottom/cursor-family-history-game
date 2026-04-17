@@ -23,6 +23,7 @@ import type { Edge as AppEdge } from '../state/appState'
 import type { NodePosition } from '../state/appState'
 import PersonNode from './PersonNode'
 import AlignToolbar from './AlignToolbar'
+import PhotoLibraryPanel from './PhotoLibraryPanel'
 import { layoutDagre } from '../layout/layoutDagre'
 import { setReactFlowInstance, getReactFlowInstance } from '../utils/reactFlowBridge'
 import { createNewPerson } from '../state/appState'
@@ -431,6 +432,7 @@ export default function FamilyCanvas() {
   return (
     <div className="ftCanvas" ref={canvasRef}>
       <AlignToolbar />
+      <PhotoLibraryPanel />
       <button
         className="ftBtn"
         type="button"
@@ -450,8 +452,8 @@ export default function FamilyCanvas() {
         </button>
         {state.selectedPersonIds.length < 2 && (
           <div className="ftCanvas__help">
-            Drag from card edges to connect: top/bottom = parent–child, sides = marriage. Click a line and press
-            Delete to remove it.
+            Drag from card edges to connect: top/bottom = parent–child, sides = marriage. Use the photo tray (right)
+            to import a folder, then drag a thumbnail onto a card. Click a line and press Delete to remove it.
           </div>
         )}
       </div>
