@@ -51,7 +51,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const person = state.persons[personId]
 
   const selected = !!props.selected
-  const dragging = !!(props as any).dragging
+  const dragging = !!props.dragging
   const isSingleSelected = selected && state.selectedPersonIds.length === 1
   const toolbarVisible = isSingleSelected && !dragging
 
@@ -240,9 +240,10 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       style={{
         width: PERSON_CARD_W,
         height: PERSON_CARD_H,
+        boxSizing: 'border-box',
         borderRadius: 14,
-        border: selected ? '2px solid var(--accent-border)' : '1px solid var(--border)',
-        boxShadow: selected ? '0 0 0 3px var(--accent-bg)' : 'none',
+        border: '2px solid var(--border)',
+        boxShadow: selected ? '0 0 0 3px var(--accent-bg)' : '0 0 0 3px transparent',
         background: 'color-mix(in srgb, var(--bg), transparent 0%)',
         overflow: 'visible',
         position: 'relative',

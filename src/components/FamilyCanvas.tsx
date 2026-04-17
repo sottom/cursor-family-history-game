@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
 import { computeCardAlignmentSnap } from '../utils/alignmentSnap'
 import {
@@ -34,11 +34,48 @@ type PersonNodeType = Node<PersonNodeData, 'person'>
 /** Screen pixels — converted to flow units using zoom for consistent feel while panning/zooming */
 const ALIGNMENT_SNAP_SCREEN_PX = 8
 
+/** Whole flow units — avoids subpixel drift between React Flow’s internal drag and persisted state. */
+function roundFlowPosition(p: NodePosition): NodePosition {
+  return { x: Math.round(p.x), y: Math.round(p.y) }
+}
+
 function hashColorFromId(id: string) {
   const palette = ['#b08f68', '#8e7f63', '#9f8671', '#7d776a', '#b48a6a', '#8d6f58']
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
   return palette[h % palette.length]
+}
+
+function strokeWidthNumber(style: Edge['style']): number {
+  const sw = style?.strokeWidth
+  if (typeof sw === 'number' && !Number.isNaN(sw)) return sw
+  if (typeof sw === 'string') {
+    const n = parseFloat(sw)
+    return Number.isNaN(n) ? 1.5 : n
+  }
+  return 1.5
+}
+
+/** Strong highlight so selected edges are obvious before Delete/Backspace (inline styles override RF defaults). */
+function applyEdgeHighlight(e: Edge): Edge {
+  const base = { ...(e.style ?? {}) }
+  if (!e.selected) {
+    return { ...e, style: base }
+  }
+  const sw = strokeWidthNumber(e.style)
+  return {
+    ...e,
+    style: {
+      ...base,
+      stroke: '#cf1e1e',
+      strokeWidth: sw + 2.75,
+      filter: 'drop-shadow(0 0 7px rgba(207, 30, 30, 0.65))',
+    },
+  }
+}
+
+function mergeDerivedEdgesWithSelection(derived: Edge[], selectedIds: Set<string>): Edge[] {
+  return derived.map((e) => applyEdgeHighlight({ ...e, selected: selectedIds.has(e.id) }))
 }
 
 export default function FamilyCanvas() {
@@ -68,6 +105,9 @@ export default function FamilyCanvas() {
     horizontal: { y: number; x1: number; x2: number } | null
     zoom: number
   }>({ vertical: null, horizontal: null, zoom: 1 })
+
+  /** Last aligned positions shown during drag (RF’s internal coords stay unsnapped). */
+  const lastAlignedDragPositionsRef = useRef<Record<string, NodePosition>>({})
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -170,17 +210,7 @@ export default function FamilyCanvas() {
     [dispatch, state.edges, state.persons],
   )
 
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      const removals = changes.filter((c) => c.type === 'remove')
-      for (const c of removals) {
-        if (c.type === 'remove') dispatch({ type: 'REMOVE_EDGE', payload: { edgeId: c.id } })
-      }
-      const rest = changes.filter((c) => c.type !== 'remove')
-      if (rest.length > 0) setRfEdges((eds) => applyEdgeChanges(rest, eds) as Edge[])
-    },
-    [dispatch],
-  )
+  const derivedFlowEdgesRef = useRef<Edge[]>([])
 
   const derivedFlowEdges = useMemo<Edge[]>(
     () =>
@@ -218,14 +248,31 @@ export default function FamilyCanvas() {
     [state.edges, state.nodePositions],
   )
 
+  derivedFlowEdgesRef.current = derivedFlowEdges
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const removals = changes.filter((c) => c.type === 'remove')
+      for (const c of removals) {
+        if (c.type === 'remove') dispatch({ type: 'REMOVE_EDGE', payload: { edgeId: c.id } })
+      }
+      const rest = changes.filter((c) => c.type !== 'remove')
+      if (rest.length > 0) {
+        setRfEdges((eds) => {
+          const next = applyEdgeChanges(rest, eds) as Edge[]
+          const selectedIds = new Set(next.filter((e) => e.selected).map((e) => e.id))
+          return mergeDerivedEdgesWithSelection(derivedFlowEdgesRef.current, selectedIds)
+        })
+      }
+    },
+    [dispatch],
+  )
+
   const [rfEdges, setRfEdges] = useState<Edge[]>([])
   useEffect(() => {
     setRfEdges((prev) => {
       const selectedIds = new Set(prev.filter((e) => e.selected).map((e) => e.id))
-      return derivedFlowEdges.map((e) => ({
-        ...e,
-        selected: selectedIds.has(e.id),
-      }))
+      return mergeDerivedEdgesWithSelection(derivedFlowEdges, selectedIds)
     })
   }, [derivedFlowEdges])
 
@@ -233,6 +280,10 @@ export default function FamilyCanvas() {
     const next = layoutDagre(state.persons, state.edges)
     dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions: next } })
   }, [dispatch, state.edges, state.persons])
+
+  const onNodeDragStart = useCallback(() => {
+    lastAlignedDragPositionsRef.current = {}
+  }, [])
 
   const onNodeDrag = useCallback(
     (_: MouseEvent, _node: PersonNodeType, draggedNodes: PersonNodeType[]) => {
@@ -266,10 +317,17 @@ export default function FamilyCanvas() {
             if (!d) return n
             return {
               ...n,
-              position: { x: d.position.x + dx, y: d.position.y + dy },
+              position: roundFlowPosition({ x: d.position.x + dx, y: d.position.y + dy }),
             }
           }),
         )
+      }
+
+      for (const d of draggedNodes) {
+        lastAlignedDragPositionsRef.current[d.id] = roundFlowPosition({
+          x: d.position.x + dx,
+          y: d.position.y + dy,
+        })
       }
 
       setAlignmentGuides((prev) => {
@@ -301,9 +359,17 @@ export default function FamilyCanvas() {
       setAlignmentGuides({ vertical: null, horizontal: null, zoom: 1 })
       const positions: Record<string, NodePosition> = {}
       for (const n of draggedNodes) {
-        positions[n.id] = n.position as NodePosition
+        const aligned = lastAlignedDragPositionsRef.current[n.id]
+        positions[n.id] = aligned ?? roundFlowPosition(n.position)
       }
+      lastAlignedDragPositionsRef.current = {}
       dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions } })
+      setNodes((prev) =>
+        prev.map((n) => {
+          const p = positions[n.id]
+          return p ? { ...n, position: p } : n
+        }),
+      )
     },
     [dispatch],
   )
@@ -358,9 +424,17 @@ export default function FamilyCanvas() {
         onNodesChange={(changes: NodeChange[]) => {
           const removals = changes.filter((c) => c.type === 'remove')
           for (const c of removals) dispatch({ type: 'REMOVE_PERSON', payload: { personId: c.id } })
-          const rest = changes.filter((c) => c.type !== 'remove')
+          const rest = changes
+            .filter((c) => c.type !== 'remove')
+            .map((c) => {
+              if (c.type === 'position' && c.position) {
+                return { ...c, position: roundFlowPosition(c.position) }
+              }
+              return c
+            })
           if (rest.length > 0) setNodes((prev) => applyNodeChanges(rest, prev) as PersonNodeType[])
         }}
+        onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onEdgesChange={onEdgesChange}
