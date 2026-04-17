@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
@@ -211,6 +211,15 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       boxShadow: '0 1px 3px rgba(60, 40, 20, 0.16)',
       zIndex: 24,
     } as const,
+    lineageSide: {
+      width: 4,
+      height: 4,
+      borderRadius: 999,
+      background: 'var(--bg)',
+      border: '0.75px solid var(--accent)',
+      boxShadow: '0 1px 2px rgba(60, 40, 20, 0.12)',
+      zIndex: 24,
+    } as const,
     spouse: {
       width: 8,
       height: 8,
@@ -220,7 +229,21 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       boxShadow: '0 1px 3px rgba(60, 40, 20, 0.16)',
       zIndex: 24,
     } as const,
+    spouseSide: {
+      width: 4,
+      height: 4,
+      borderRadius: 999,
+      background: 'var(--bg)',
+      border: '0.75px solid #b79c7a',
+      boxShadow: '0 1px 2px rgba(60, 40, 20, 0.12)',
+      zIndex: 24,
+    } as const,
   }
+
+  const lineageSlotLeftPct = [25, 50, 75] as const
+  const marriageSlotTopPct = [25, 50, 75] as const
+  const lineageStyleForSlot = (slot: 0 | 1 | 2) => (slot === 1 ? hz.lineage : hz.lineageSide)
+  const spouseStyleForSlot = (slot: 0 | 1 | 2) => (slot === 1 ? hz.spouse : hz.spouseSide)
 
   const handlePointer = (key: string) => ({
     onPointerEnter: () => setHoveredHandleKey(key),
@@ -242,9 +265,11 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         height: PERSON_CARD_H,
         boxSizing: 'border-box',
         borderRadius: 14,
-        border: '2px solid var(--border)',
-        boxShadow: selected ? '0 0 0 3px var(--accent-bg)' : '0 0 0 3px transparent',
-        background: 'color-mix(in srgb, var(--bg), transparent 0%)',
+        border: '2px solid var(--card-border)',
+        boxShadow: selected
+          ? 'var(--card-shadow), 0 0 0 3px var(--accent-bg)'
+          : 'var(--card-shadow), 0 0 0 3px transparent',
+        background: 'var(--card-bg)',
         overflow: 'visible',
         position: 'relative',
       }}
@@ -256,7 +281,8 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           left: PHOTO_THUMB_FRAME.x, top: PHOTO_THUMB_FRAME.y,
           width: PHOTO_THUMB_FRAME.w, height: PHOTO_THUMB_FRAME.h,
           borderRadius: 12, overflow: 'hidden',
-          border: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)',
+          border: '1px solid color-mix(in srgb, var(--card-border), transparent 35%)',
+          background: 'color-mix(in srgb, var(--text-h), transparent 97%)',
           pointerEvents: 'none',
         }}
       >
@@ -274,7 +300,8 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           left: PHOTO_MAIN_FRAME.x, top: PHOTO_MAIN_FRAME.y,
           width: PHOTO_MAIN_FRAME.w, height: PHOTO_MAIN_FRAME.h,
           borderRadius: 14, overflow: 'hidden',
-          border: '1px solid var(--border)', background: 'rgba(0,0,0,0.03)',
+          border: '1px solid color-mix(in srgb, var(--card-border), transparent 35%)',
+          background: 'color-mix(in srgb, var(--text-h), transparent 97%)',
           pointerEvents: 'none',
         }}
       >
@@ -349,12 +376,12 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         )}
       </div>
 
-      {/* Handles on top so they’re visible and not covered by photos/text. Top/bottom = lineage; sides = spouse. */}
+      {/* Lineage: one centered dot on top; three on the bottom. Sides = spouse. */}
       <Handle
         type="source"
         position={Position.Top}
         id="to-parent"
-        title="Drag to a parent’s bottom-center dot to link as their child"
+        title="Drag to a parent’s bottom dot to link as their child"
         {...handlePointer(`${personId}:to-parent`)}
         style={withHoverScale(`${personId}:to-parent`, 'translate(-50%, -50%)', { ...hz.lineage, left: '50%', zIndex: 24 })}
       />
@@ -366,46 +393,64 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         {...handlePointer(`${personId}:child`)}
         style={withHoverScale(`${personId}:child`, 'translate(-50%, -50%)', { ...hz.lineage, left: '50%', zIndex: 25 })}
       />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="parent-accept"
-        title="Drop from a child’s top (outgoing) dot"
-        {...handlePointer(`${personId}:parent-accept`)}
-        style={withHoverScale(`${personId}:parent-accept`, 'translate(-50%, 50%)', {
-          ...hz.lineage,
-          left: '50%',
-          zIndex: 24,
-        })}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="parent-0"
-        title="Drag to a child’s top-center dot"
-        {...handlePointer(`${personId}:parent-0`)}
-        style={withHoverScale(`${personId}:parent-0`, 'translate(-50%, 50%)', {
-          ...hz.lineage,
-          left: '50%',
-          zIndex: 25,
-        })}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="spouse-right"
-        title="Marriage"
-        {...handlePointer(`${personId}:spouse-right`)}
-        style={withHoverScale(`${personId}:spouse-right`, 'translate(50%, -50%)', { ...hz.spouse, top: '50%' })}
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="spouse-left"
-        title="Marriage"
-        {...handlePointer(`${personId}:spouse-left`)}
-        style={withHoverScale(`${personId}:spouse-left`, 'translate(-50%, -50%)', { ...hz.spouse, top: '50%' })}
-      />
+      {([0, 1, 2] as const).map((slot) => {
+        const lb = lineageStyleForSlot(slot)
+        const left = `${lineageSlotLeftPct[slot]}%`
+        const label = slot === 0 ? 'left' : slot === 1 ? 'center' : 'right'
+        return (
+          <Fragment key={`lineage-bottom-${slot}`}>
+            <Handle
+              type="target"
+              position={Position.Bottom}
+              id={`parent-accept-${slot}`}
+              title="Drop from a child’s top (outgoing) dot"
+              {...handlePointer(`${personId}:parent-accept-${slot}`)}
+              style={withHoverScale(`${personId}:parent-accept-${slot}`, 'translate(-50%, 50%)', {
+                ...lb,
+                left,
+                zIndex: 24,
+              })}
+            />
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id={`parent-${slot}`}
+              title={`Drag to a child’s top-center dot (${label} bottom source)`}
+              {...handlePointer(`${personId}:parent-${slot}`)}
+              style={withHoverScale(`${personId}:parent-${slot}`, 'translate(-50%, 50%)', {
+                ...lb,
+                left,
+                zIndex: 25,
+              })}
+            />
+          </Fragment>
+        )
+      })}
+      {([0, 1, 2] as const).map((slot) => {
+        const sb = spouseStyleForSlot(slot)
+        const top = `${marriageSlotTopPct[slot]}%`
+        const place = slot === 0 ? 'upper' : slot === 1 ? 'middle' : 'lower'
+        return (
+          <Fragment key={`marriage-side-${slot}`}>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id={`spouse-right-${slot}`}
+              title={`Marriage (${place} dot — drag to a spouse’s left)`}
+              {...handlePointer(`${personId}:spouse-right-${slot}`)}
+              style={withHoverScale(`${personId}:spouse-right-${slot}`, 'translate(50%, -50%)', { ...sb, top, zIndex: 25 })}
+            />
+            <Handle
+              type="target"
+              position={Position.Left}
+              id={`spouse-left-${slot}`}
+              title={`Marriage (${place} dot — incoming from a spouse’s right)`}
+              {...handlePointer(`${personId}:spouse-left-${slot}`)}
+              style={withHoverScale(`${personId}:spouse-left-${slot}`, 'translate(-50%, -50%)', { ...sb, top, zIndex: 24 })}
+            />
+          </Fragment>
+        )
+      })}
     </div>
   )
 }

@@ -48,6 +48,10 @@ export type Edge = {
     dateISO?: string
     location?: string
   }
+  /**
+   * Which vertical marriage-dot pair (0–2) this edge uses; set when connecting. Older graphs omit this.
+   */
+  spouseHandleSlot?: 0 | 1 | 2
 }
 
 export type NodePosition = { x: number; y: number }

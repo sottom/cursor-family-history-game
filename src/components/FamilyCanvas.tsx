@@ -26,7 +26,8 @@ import AlignToolbar from './AlignToolbar'
 import { layoutDagre } from '../layout/layoutDagre'
 import { setReactFlowInstance, getReactFlowInstance } from '../utils/reactFlowBridge'
 import { createNewPerson } from '../state/appState'
-import { parentSourceHandleId } from '../utils/parentHandles'
+import { childTargetHandleId, parentSourceHandleId } from '../utils/parentHandles'
+import { slotFromSpouseRightHandle, spouseSourceHandleId, spouseTargetHandleId } from '../utils/spouseHandles'
 
 type PersonNodeData = { personId: string }
 type PersonNodeType = Node<PersonNodeData, 'person'>
@@ -129,9 +130,11 @@ export default function FamilyCanvas() {
     if (!connection.source || !connection.target || connection.source === connection.target) return false
     const sh = connection.sourceHandle ?? null
     const th = connection.targetHandle ?? null
-    if (sh === 'spouse-right' && th === 'spouse-left') return true
-    if (sh?.startsWith('parent') && th === 'child') return true
-    if (sh === 'to-parent' && th === 'parent-accept') return true
+    if (/^spouse-right-[0-2]$/.test(sh ?? '') && /^spouse-left-[0-2]$/.test(th ?? '')) {
+      return sh!.slice('spouse-right-'.length) === th!.slice('spouse-left-'.length)
+    }
+    if (/^parent-[0-2]$/.test(sh ?? '') && th === 'child') return true
+    if (sh === 'to-parent' && /^parent-accept-[0-2]$/.test(th ?? '')) return true
     return false
   }, [])
 
@@ -141,7 +144,7 @@ export default function FamilyCanvas() {
       const th = connection.targetHandle
       if (!connection.source || !connection.target) return
 
-      if (sh === 'spouse-right' && th === 'spouse-left') {
+      if (/^spouse-right-[0-2]$/.test(sh ?? '') && /^spouse-left-[0-2]$/.test(th ?? '')) {
         const a = connection.source
         const b = connection.target
         if (a === b) return
@@ -154,9 +157,19 @@ export default function FamilyCanvas() {
 
         const marriage = { dateISO: undefined as string | undefined, location: undefined as string | undefined }
         const edgeId = crypto.randomUUID()
+        const spouseHandleSlot = slotFromSpouseRightHandle(sh)
         dispatch({
           type: 'ADD_EDGE',
-          payload: { edge: { id: edgeId, source: a, target: b, type: 'spouse', marriage } },
+          payload: {
+            edge: {
+              id: edgeId,
+              source: a,
+              target: b,
+              type: 'spouse',
+              marriage,
+              ...(spouseHandleSlot !== undefined ? { spouseHandleSlot } : {}),
+            },
+          },
         })
 
         const pa = state.persons[a]
@@ -184,10 +197,10 @@ export default function FamilyCanvas() {
 
       let parentId: string
       let childId: string
-      if (sh?.startsWith('parent') && th === 'child') {
+      if (/^parent-[0-2]$/.test(sh ?? '') && th === 'child') {
         parentId = connection.source
         childId = connection.target
-      } else if (sh === 'to-parent' && th === 'parent-accept') {
+      } else if (sh === 'to-parent' && /^parent-accept-[0-2]$/.test(th ?? '')) {
         childId = connection.source
         parentId = connection.target
       } else {
@@ -225,8 +238,8 @@ export default function FamilyCanvas() {
             source: leftId,
             target: rightId,
             type: 'straight',
-            sourceHandle: 'spouse-right',
-            targetHandle: 'spouse-left',
+            sourceHandle: spouseSourceHandleId(edge, state.edges),
+            targetHandle: spouseTargetHandleId(edge, state.edges),
             style: { stroke: '#b79c7a', strokeWidth: 1.5, strokeDasharray: '4 4' },
             data: { relationshipType: edge.type, marriage: edge.marriage },
             interactionWidth: 28,
@@ -239,7 +252,7 @@ export default function FamilyCanvas() {
           target: edge.target,
           type: 'smoothstep',
           sourceHandle: parentSourceHandleId(edge, state.edges, state.nodePositions),
-          targetHandle: 'child',
+          targetHandle: childTargetHandleId(edge, state.edges, state.nodePositions),
           style: { stroke: hashColorFromId(edge.source), strokeWidth: 1.6 },
           data: { relationshipType: edge.type },
           interactionWidth: 28,

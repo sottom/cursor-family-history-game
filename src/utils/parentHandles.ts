@@ -1,6 +1,24 @@
 import type { Edge, NodePosition } from '../state/appState'
 import { PERSON_CARD_W } from '../state/appState'
 
+/** 0 = left (25%), 1 = center (50%), 2 = right (75%) — bottom `parent-N` source handles only; child top uses a single `child` target. */
+export function lineageSlotIndex(
+  edge: Edge,
+  _edges: Edge[],
+  nodePositions: Record<string, NodePosition>,
+): 0 | 1 | 2 {
+  if (edge.type !== 'parent-child') return 1
+  const parentId = edge.source
+  const childId = edge.target
+  const pCx = (nodePositions[parentId]?.x ?? 0) + PERSON_CARD_W / 2
+  const cCx = (nodePositions[childId]?.x ?? 0) + PERSON_CARD_W / 2
+  const dx = cCx - pCx
+  const t = PERSON_CARD_W / 5
+  if (dx < -t) return 0
+  if (dx > t) return 2
+  return 1
+}
+
 function directParentsOfChild(childId: string, edges: Edge[]): string[] {
   const ids: string[] = []
   for (const e of edges) {
@@ -60,28 +78,30 @@ export function isJointChildWithSpouse(parentId: string, childId: string, edges:
 }
 
 /**
- * Handles are centered on the bottom edge (one source slot for all parent→child links).
+ * Left positions (% from card left) for the three bottom lineage handles.
  */
 export function computeParentHandleLeftPercents(
   _personId: string,
   _edges: Edge[],
   _nodePositions: Record<string, NodePosition>,
 ): number[] {
-  return [50]
+  return [25, 50, 75]
 }
 
-/**
- * Single centered parent source handle (`parent-0`) for all outgoing parent→child edges.
- */
-export function parentChildSourceHandleIndex(_edge: Edge, _edges: Edge[], _nodePositions: Record<string, NodePosition>): number {
-  return 0
+export function parentChildSourceHandleIndex(edge: Edge, edges: Edge[], nodePositions: Record<string, NodePosition>): number {
+  return lineageSlotIndex(edge, edges, nodePositions)
 }
 
-export function parentSourceHandleId(_edge: Edge, _edges: Edge[], _nodePositions: Record<string, NodePosition>): string {
-  return 'parent-0'
+export function parentSourceHandleId(edge: Edge, edges: Edge[], nodePositions: Record<string, NodePosition>): string {
+  return `parent-${lineageSlotIndex(edge, edges, nodePositions)}`
 }
 
-/** One bottom source handle; all parent→child edges attach to `parent-0`. */
+/** Single centered top target on the child card; parent→child lines always meet here. */
+export function childTargetHandleId(_edge: Edge, _edges: Edge[], _nodePositions: Record<string, NodePosition>): string {
+  return 'child'
+}
+
+/** Three bottom source handles (`parent-0` … `parent-2`); edges pick a slot from layout. */
 export function parentSourceHandleCount(_personId: string, _edges: Edge[]): number {
-  return 1
+  return 3
 }
