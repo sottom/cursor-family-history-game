@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import {
   ReactFlow,
   Background,
@@ -14,14 +14,14 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import { SPOUSE_PAIR_SPACING_X, type Edge as AppEdge } from '../state/appState'
+import type { Edge as AppEdge } from '../state/appState'
 import type { NodePosition } from '../state/appState'
 import PersonNode from './PersonNode'
 import AlignToolbar from './AlignToolbar'
 import { layoutDagre } from '../layout/layoutDagre'
 import { setReactFlowInstance, getReactFlowInstance } from '../utils/reactFlowBridge'
 import { createNewPerson } from '../state/appState'
-import { getSpouseCluster } from '../utils/relationships'
+import { parentSourceHandleId } from '../utils/parentHandles'
 
 type PersonNodeData = { personId: string }
 type PersonNodeType = Node<PersonNodeData, 'person'>
@@ -96,7 +96,7 @@ export default function FamilyCanvas() {
           source: edge.source,
           target: edge.target,
           type: 'smoothstep',
-          sourceHandle: 'parent',
+          sourceHandle: parentSourceHandleId(edge, state.edges, state.nodePositions),
           targetHandle: 'child',
           style: { stroke: hashColorFromId(edge.source), strokeWidth: 1.6 },
           data: { relationshipType: edge.type },
@@ -110,34 +110,15 @@ export default function FamilyCanvas() {
     dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions: next } })
   }, [dispatch, state.edges, state.persons])
 
-  const moveSpouseCluster = useCallback(
-    (personId: string, anchorPosition: NodePosition, commitToState: boolean) => {
-      const cluster = getSpouseCluster(personId, state.edges)
-      if (cluster.length <= 1) {
-        if (commitToState) dispatch({ type: 'SET_NODE_POSITION', payload: { personId, position: anchorPosition } })
-        return
+  const onNodeDragStop = useCallback(
+    (_: MouseEvent, _node: PersonNodeType, draggedNodes: PersonNodeType[]) => {
+      const positions: Record<string, NodePosition> = {}
+      for (const n of draggedNodes) {
+        positions[n.id] = n.position as NodePosition
       }
-
-      const orderedCluster = [...cluster].sort(
-        (a, b) => (state.nodePositions[a]?.x ?? 0) - (state.nodePositions[b]?.x ?? 0),
-      )
-      const anchorIndex = orderedCluster.indexOf(personId)
-      const baseX = anchorPosition.x - anchorIndex * SPOUSE_PAIR_SPACING_X
-      const nextPositions: Record<string, NodePosition> = {}
-
-      orderedCluster.forEach((id, index) => {
-        nextPositions[id] = { x: baseX + index * SPOUSE_PAIR_SPACING_X, y: anchorPosition.y }
-      })
-
-      setNodes((prev) =>
-        prev.map((node) => (nextPositions[node.id] ? { ...node, position: nextPositions[node.id] } : node)),
-      )
-
-      if (commitToState) {
-        dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions: nextPositions } })
-      }
+      dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions } })
     },
-    [dispatch, state.edges, state.nodePositions],
+    [dispatch],
   )
 
   return (
@@ -189,8 +170,7 @@ export default function FamilyCanvas() {
           const rest = changes.filter((c) => c.type !== 'remove')
           if (rest.length > 0) setNodes((prev) => applyNodeChanges(rest, prev) as PersonNodeType[])
         }}
-        onNodeDragStop={(_, node) => moveSpouseCluster(node.id, node.position as NodePosition, true)}
-        onNodeDrag={(_, node) => moveSpouseCluster(node.id, node.position as NodePosition, false)}
+        onNodeDragStop={onNodeDragStop}
         onEdgesChange={(changes: EdgeChange[]) => { void changes }}
         onConnect={(connection) => {
           const sh = connection.sourceHandle

@@ -3,6 +3,7 @@ import dagre from 'dagre'
 import type { Edge, Person } from '../state/appState'
 import { PERSON_CARD_H, PERSON_CARD_W, SPOUSE_GAP } from '../state/appState'
 import type { NodePosition } from '../state/appState'
+import { isJointChildWithSpouse, marriageSideRelative } from '../utils/parentHandles'
 
 const SPOUSE_PAIR_SPACING = PERSON_CARD_W + SPOUSE_GAP
 
@@ -47,8 +48,8 @@ export function layoutDagre(
   const g = new dagre.graphlib.Graph()
   g.setGraph({
     rankdir: 'TB',
-    nodesep: 50,
-    ranksep: 100,
+    nodesep: 10,
+    ranksep: 25,
     marginx: 40,
     marginy: 40,
   })
@@ -73,10 +74,128 @@ export function layoutDagre(
     positions[id] = { x: node.x - PERSON_CARD_W / 2, y: node.y - PERSON_CARD_H / 2 }
   }
 
-  snapSpouseClusters(positions, personIds, spouseAdj)
-  alignFamilies(positions, familyUnits, personIds, spouseAdj)
+  snapSpouseClusters(positions, personIds, spouseAdj, childToParents)
+  alignFamilies(positions, familyUnits, personIds, spouseAdj, childToParents, edges)
+  fanExclusiveChildrenOfMarriedParents(positions, edges, spouseAdj)
+  resolveOverlaps(positions, personIds, spouseAdj, childToParents)
 
   return positions
+}
+
+const FAN_EXCLUSIVE_GAP = SPOUSE_GAP
+
+/**
+ * When a married person has several children who are only linked to them (not joint with their
+ * spouse), center the leftmost under that parent and lay the rest out to the right so lines stay
+ * clear of joint children (e.g. shared child between spouses) and of each other.
+ */
+function fanExclusiveChildrenOfMarriedParents(
+  positions: Record<string, NodePosition>,
+  edges: Edge[],
+  spouseAdj: Map<string, Set<string>>,
+) {
+  const parentSources = new Set<string>()
+  for (const e of edges) {
+    if (e.type === 'parent-child') parentSources.add(e.source)
+  }
+
+  for (const P of parentSources) {
+    if (!spouseAdj.get(P)?.size) continue
+
+    const exclusiveTargets = new Set<string>()
+    for (const pe of edges) {
+      if (pe.type !== 'parent-child' || pe.source !== P) continue
+      if (!isJointChildWithSpouse(P, pe.target, edges)) exclusiveTargets.add(pe.target)
+    }
+
+    if (exclusiveTargets.size < 2) continue
+
+    const kids = [...exclusiveTargets].sort((a, b) => {
+      const xa = positions[a]?.x ?? 0
+      const xb = positions[b]?.x ?? 0
+      if (Math.abs(xa - xb) > 2) return xa - xb
+      return a.localeCompare(b)
+    })
+
+    const pPos = positions[P]
+    if (!pPos) continue
+    const parentCenterX = pPos.x + PERSON_CARD_W / 2
+
+    const side = marriageSideRelative(P, edges, positions)
+    const fanLeft = side === 'left'
+
+    if (fanLeft) {
+      let x = parentCenterX - PERSON_CARD_W / 2
+      for (let i = 0; i < kids.length; i++) {
+        const cid = kids[i]!
+        const py = positions[cid]?.y ?? pPos.y
+        positions[cid] = { x, y: py }
+        if (i < kids.length - 1) x -= PERSON_CARD_W + FAN_EXCLUSIVE_GAP
+      }
+    } else {
+      let x = parentCenterX - PERSON_CARD_W / 2
+      for (const cid of kids) {
+        const py = positions[cid]?.y ?? pPos.y
+        positions[cid] = { x, y: py }
+        x += PERSON_CARD_W + FAN_EXCLUSIVE_GAP
+      }
+    }
+  }
+}
+
+function hasSpouse(personId: string, spouseAdj: Map<string, Set<string>>): boolean {
+  return (spouseAdj.get(personId)?.size ?? 0) > 0
+}
+
+/** Sorted parent ids for layout grouping; empty if the person has no recorded parents. */
+function parentSignature(childToParents: Map<string, Set<string>>, id: string): string {
+  const p = childToParents.get(id)
+  if (!p || p.size === 0) return ''
+  return [...p].sort().join('|')
+}
+
+/**
+ * Spouses who share this link move as one unit in alignment / overlap resolution when they have the
+ * same parent set (or both are roots). Couples with different parentage (e.g. two married people
+ * whose parents are different pairs) align independently under their own parents.
+ */
+function spousesShareLayoutCluster(
+  childToParents: Map<string, Set<string>>,
+  a: string,
+  b: string,
+): boolean {
+  return parentSignature(childToParents, a) === parentSignature(childToParents, b)
+}
+
+function buildAlignClusterMap(
+  personIds: string[],
+  spouseAdj: Map<string, Set<string>>,
+  childToParents: Map<string, Set<string>>,
+): Map<string, string[]> {
+  const visited = new Set<string>()
+  const clusterOf = new Map<string, string[]>()
+
+  for (const id of personIds) {
+    if (visited.has(id)) continue
+    const cluster: string[] = []
+    const q = [id]
+    while (q.length > 0) {
+      const curr = q.shift()!
+      if (visited.has(curr)) continue
+      visited.add(curr)
+      cluster.push(curr)
+      const nbrs = spouseAdj.get(curr)
+      if (!nbrs) continue
+      for (const n of nbrs) {
+        if (visited.has(n)) continue
+        if (!spousesShareLayoutCluster(childToParents, curr, n)) continue
+        q.push(n)
+      }
+    }
+    for (const mid of cluster) clusterOf.set(mid, cluster)
+  }
+
+  return clusterOf
 }
 
 function buildFamilyUnits(
@@ -149,50 +268,64 @@ function snapSpouseClusters(
   positions: Record<string, NodePosition>,
   personIds: string[],
   spouseAdj: Map<string, Set<string>>,
+  childToParents: Map<string, Set<string>>,
 ) {
   const visited = new Set<string>()
 
   for (const id of personIds) {
     if (visited.has(id)) continue
-    const cluster: string[] = []
+    const component: string[] = []
     const q = [id]
     while (q.length > 0) {
       const curr = q.shift()!
       if (visited.has(curr)) continue
       visited.add(curr)
-      cluster.push(curr)
+      component.push(curr)
       const nbrs = spouseAdj.get(curr)
       if (nbrs) for (const n of nbrs) if (!visited.has(n)) q.push(n)
     }
-    if (cluster.length <= 1) continue
+    if (component.length <= 1) continue
 
-    const ordered = orderSpouseChain(cluster, spouseAdj, positions)
-    const avgY = ordered.reduce((s, cid) => s + (positions[cid]?.y ?? 0), 0) / ordered.length
-    const centerX =
-      ordered.reduce((s, cid) => s + (positions[cid]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
-      ordered.length
-    const totalW = ordered.length * PERSON_CARD_W + (ordered.length - 1) * SPOUSE_GAP
-    const startX = centerX - totalW / 2
+    const bySig = new Map<string, string[]>()
+    for (const pid of component) {
+      const sig = parentSignature(childToParents, pid)
+      if (!bySig.has(sig)) bySig.set(sig, [])
+      bySig.get(sig)!.push(pid)
+    }
 
-    for (let i = 0; i < ordered.length; i++) {
-      positions[ordered[i]] = { x: startX + i * SPOUSE_PAIR_SPACING, y: avgY }
+    for (const group of bySig.values()) {
+      if (group.length <= 1) continue
+
+      const ordered = orderSpouseChain(group, spouseAdj, positions)
+      const avgY = ordered.reduce((s, cid) => s + (positions[cid]?.y ?? 0), 0) / ordered.length
+      const centerX =
+        ordered.reduce((s, cid) => s + (positions[cid]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
+        ordered.length
+      const totalW = ordered.length * PERSON_CARD_W + (ordered.length - 1) * SPOUSE_GAP
+      const startX = centerX - totalW / 2
+
+      for (let i = 0; i < ordered.length; i++) {
+        positions[ordered[i]] = { x: startX + i * SPOUSE_PAIR_SPACING, y: avgY }
+      }
     }
   }
 }
 
 /**
- * Iteratively relaxes the X coordinates of all clusters to minimize the
- * horizontal distance between parents and children, maintaining the
- * rigidity of spouse clusters. This ensures parents are centered over
- * their children, and children are centered under their parents.
+ * Iteratively relaxes X so parent midpoints line up with their children.
+ * Spouse pairs with the same parent set (or both roots) move as one block;
+ * married people with different parents (e.g. two in-laws) shift independently
+ * so each stays centered under their own parents.
  */
 function alignFamilies(
   positions: Record<string, NodePosition>,
   familyUnits: FamilyUnit[],
   personIds: string[],
   spouseAdj: Map<string, Set<string>>,
+  childToParents: Map<string, Set<string>>,
+  edges: Edge[],
 ) {
-  const clusterOf = buildClusterMap(personIds, spouseAdj)
+  const clusterOf = buildAlignClusterMap(personIds, spouseAdj, childToParents)
   const clusters = [...new Set(personIds.map((id) => clusterOf.get(id)!))]
 
   for (let pass = 0; pass < 20; pass++) {
@@ -201,6 +334,18 @@ function alignFamilies(
 
     for (const fu of familyUnits) {
       if (fu.childIds.length === 0 || fu.parentIds.length === 0) continue
+
+      // Married parent with multiple children only linked to them: fan layout handles X — skip
+      // averaging that would center the group as a block.
+      if (fu.parentIds.length === 1 && fu.childIds.length >= 2) {
+        const only = fu.parentIds[0]!
+        if (hasSpouse(only, spouseAdj)) {
+          const allExclusive = fu.childIds.every(
+            (cid) => !isJointChildWithSpouse(only, cid, edges),
+          )
+          if (allExclusive) continue
+        }
+      }
 
       const parentMidX =
         fu.parentIds.reduce((s, id) => s + (positions[id]?.x ?? 0) + PERSON_CARD_W / 2, 0) /
@@ -234,43 +379,19 @@ function alignFamilies(
       }
     }
 
-    resolveOverlaps(positions, personIds, spouseAdj)
+    resolveOverlaps(positions, personIds, spouseAdj, childToParents)
 
     if (!moved) break
   }
-}
-
-function buildClusterMap(
-  personIds: string[],
-  spouseAdj: Map<string, Set<string>>,
-): Map<string, string[]> {
-  const visited = new Set<string>()
-  const clusterOf = new Map<string, string[]>()
-
-  for (const id of personIds) {
-    if (visited.has(id)) continue
-    const cluster: string[] = []
-    const q = [id]
-    while (q.length > 0) {
-      const curr = q.shift()!
-      if (visited.has(curr)) continue
-      visited.add(curr)
-      cluster.push(curr)
-      const nbrs = spouseAdj.get(curr)
-      if (nbrs) for (const n of nbrs) if (!visited.has(n)) q.push(n)
-    }
-    for (const mid of cluster) clusterOf.set(mid, cluster)
-  }
-
-  return clusterOf
 }
 
 function resolveOverlaps(
   positions: Record<string, NodePosition>,
   personIds: string[],
   spouseAdj: Map<string, Set<string>>,
+  childToParents: Map<string, Set<string>>,
 ) {
-  const clusterOf = buildClusterMap(personIds, spouseAdj)
+  const clusterOf = buildAlignClusterMap(personIds, spouseAdj, childToParents)
   const clusters = [...new Set(personIds.map((id) => clusterOf.get(id)!))]
 
   const minXGap = 24

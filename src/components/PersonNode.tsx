@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
+import { computeParentHandleLeftPercents, parentSourceHandleCount } from '../utils/parentHandles'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { ingestPersonPhotoBlob, getBlob } from '../storage/indexedDb'
 import { PHOTO_MAIN_FRAME, PHOTO_THUMB_FRAME } from '../config/cardLayout'
@@ -185,6 +186,16 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     [dispatch, personId],
   )
 
+  const parentOutHandleCount = useMemo(
+    () => parentSourceHandleCount(personId, state.edges),
+    [personId, state.edges],
+  )
+
+  const parentHandleLeftPercents = useMemo(
+    () => computeParentHandleLeftPercents(personId, state.edges, state.nodePositions),
+    [personId, state.edges, state.nodePositions],
+  )
+
   const marriageSummary = useMemo(() => {
     if (!person?.marriages?.length) return 'Marriages: \u2014'
     const lines = person.marriages.slice(0, 2).map((m) => {
@@ -216,7 +227,20 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     >
       {/* Handles */}
       <Handle type="target" position={Position.Top} id="child" style={{ background: 'transparent', border: 0 }} />
-      <Handle type="source" position={Position.Bottom} id="parent" style={{ background: 'transparent', border: 0 }} />
+      {Array.from({ length: parentOutHandleCount }, (_, i) => (
+        <Handle
+          key={`parent-src-${i}`}
+          type="source"
+          position={Position.Bottom}
+          id={`parent-${i}`}
+          style={{
+            background: 'transparent',
+            border: 0,
+            left: `${parentHandleLeftPercents[i] ?? 50}%`,
+            transform: 'translate(-50%, 0)',
+          }}
+        />
+      ))}
       <Handle type="source" position={Position.Right} id="spouse-right" style={{ background: 'transparent', border: 0 }} />
       <Handle type="target" position={Position.Left} id="spouse-left" style={{ background: 'transparent', border: 0 }} />
 
