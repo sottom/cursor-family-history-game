@@ -241,13 +241,15 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
 
   return (
     <div
-      className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''}`}
+      className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''} ${dragging ? 'ftPersonCard--dragging' : ''}`}
       title={!selected ? 'Click to select. Then use the toolbar to edit details, add family, or set photos.' : undefined}
       style={{
         width: PERSON_CARD_W,
         height: PERSON_CARD_H,
         boxSizing: 'border-box',
         position: 'relative',
+        transform: selected ? 'scale(1.02)' : 'scale(1)',
+        transition: 'transform 120ms ease-out',
       }}
     >
       {/* Oval portrait */}
@@ -264,8 +266,9 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           background: '#d5c2a7',
           pointerEvents: 'none',
           boxShadow: selected
-            ? 'var(--card-shadow), 0 0 0 4px var(--accent-bg)'
+            ? 'var(--card-shadow), 0 0 0 5px color-mix(in srgb, var(--accent), white 18%), 0 0 16px color-mix(in srgb, var(--accent), transparent 45%)'
             : 'var(--card-shadow)',
+          transition: 'box-shadow 140ms ease-out',
         }}
       >
         <div
@@ -328,7 +331,9 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           textOverflow: 'ellipsis',
           overflow: 'hidden',
           boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          border: selected ? '2px solid color-mix(in srgb, var(--accent), white 20%)' : '2px solid transparent',
           pointerEvents: 'none',
+          transition: 'border-color 140ms ease-out',
         }}
       >
         {displayName}
@@ -356,7 +361,9 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
               height: 20,
               borderRadius: '50%',
               border: '3px solid #1b0f0f',
+              boxShadow: selected ? '0 0 0 2px color-mix(in srgb, var(--accent), white 20%)' : 'none',
               background: 'transparent',
+              transition: 'box-shadow 140ms ease-out',
             }}
           />
         ))}

@@ -416,39 +416,47 @@ code {
 .ftPersonCard__tooltip {
   position: absolute;
   left: 50%;
-  top: -14px;
+  top: -10px;
   transform: translate(-50%, -100%);
   z-index: 8;
-  max-width: 220px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg), transparent 2%);
+  max-width: 190px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 35%);
+  background: color-mix(in srgb, var(--bg), transparent 48%);
   color: var(--text-h);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.35;
-  box-shadow: var(--shadow);
+  line-height: 1.25;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(1px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 120ms ease;
+  transition: opacity 140ms ease 80ms;
 }
 
 .ftPersonCard__tooltip::after {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: -6px;
-  width: 10px;
-  height: 10px;
-  background: var(--bg);
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  background: color-mix(in srgb, var(--bg), transparent 48%);
+  border-right: 1px solid color-mix(in srgb, var(--border), transparent 35%);
+  border-bottom: 1px solid color-mix(in srgb, var(--border), transparent 35%);
   transform: translateX(-50%) rotate(45deg);
 }
 
 .ftPersonCard:hover .ftPersonCard__tooltip {
-  opacity: 1;
+  opacity: 0.62;
+}
+
+/* While dragging, keep the hint barely visible so it doesn’t compete with placement */
+.ftPersonCard--dragging .ftPersonCard__tooltip,
+.ftPersonCard--dragging:hover .ftPersonCard__tooltip {
+  opacity: 0.12;
+  transition: opacity 80ms ease;
 }
 
 .ftAlignToolbar {

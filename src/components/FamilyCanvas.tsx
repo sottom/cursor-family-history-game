@@ -248,7 +248,7 @@ export default function FamilyCanvas() {
             type: 'straight',
             sourceHandle: spouseSourceHandleId(edge, state.edges),
             targetHandle: spouseTargetHandleId(edge, state.edges),
-            style: { stroke: '#b79c7a', strokeWidth: 1.5, strokeDasharray: '4 4' },
+            style: { stroke: '#a822e5', strokeWidth: 3, strokeDasharray: '4 4' },
             data: { relationshipType: edge.type, marriage: edge.marriage },
             interactionWidth: 28,
           }
@@ -261,7 +261,7 @@ export default function FamilyCanvas() {
           type: 'smoothstep',
           sourceHandle: parentSourceHandleId(edge, state.edges, state.nodePositions),
           targetHandle: childTargetHandleId(edge, state.edges, state.nodePositions),
-          style: { stroke: hashColorFromId(edge.source), strokeWidth: 1.6 },
+          style: { stroke: hashColorFromId(edge.source), strokeWidth: 3 },
           data: { relationshipType: edge.type },
           interactionWidth: 28,
         }
@@ -538,7 +538,7 @@ export default function FamilyCanvas() {
                   y2={alignmentGuides.horizontal.y}
                   stroke="#e01818"
                   strokeOpacity={0.98}
-                  strokeWidth={1.1 / alignmentGuides.zoom}
+                  strokeWidth={1.5 / alignmentGuides.zoom}
                   strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
                   strokeLinecap="round"
                 />
