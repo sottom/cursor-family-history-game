@@ -1,11 +1,9 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
 import { Fragment, useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 
-import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
+import { type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { getBlob } from '../storage/indexedDb'
-import AddChildModal from './AddChildModal'
-import AddParentModal from './AddParentModal'
 
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
@@ -47,99 +45,17 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
 
   const selected = !!props.selected
   const dragging = !!props.dragging
-  const isSingleSelected = selected && state.selectedPersonIds.length === 1
-  const toolbarVisible = isSingleSelected && !dragging
 
   const mainUrl = useBlobUrl(person?.photoMain?.blobKey, person?.photoRevision)
   const photoMainTransform: PhotoTransform = person?.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
-  const [childModalOpen, setChildModalOpen] = useState(false)
-  const [parentModalOpen, setParentModalOpen] = useState(false)
   const [hoveredHandleKey, setHoveredHandleKey] = useState<string | null>(null)
-
-  const closeChildModal = useCallback(() => setChildModalOpen(false), [])
-  const closeParentModal = useCallback(() => setParentModalOpen(false), [])
-
-  // --- Relationship actions ---
-
-  const getExistingParents = useCallback(
-    () => state.edges.filter((e) => e.type === 'parent-child' && e.target === personId).map((e) => e.source),
-    [personId, state.edges],
-  )
-
-  const getDirectSpouses = useCallback((): string[] => {
-    const set = new Set<string>()
-    for (const e of state.edges) {
-      if (e.type !== 'spouse') continue
-      if (e.source === personId) set.add(e.target)
-      if (e.target === personId) set.add(e.source)
-    }
-    return [...set]
-  }, [personId, state.edges])
-
-  const addParent = useCallback(() => {
-    const existing = getExistingParents()
-    if (existing.length > 0) {
-      setParentModalOpen(true)
-      return
-    }
-    const currPos = state.nodePositions[personId] ?? { x: 0, y: 0 }
-    const newPerson = createNewPerson({ shortName: 'Parent', fullName: '' })
-    const newPos = { x: currPos.x, y: currPos.y - (PERSON_CARD_H + 120) }
-    dispatch({ type: 'ADD_PERSON', payload: { person: newPerson, position: newPos } })
-    dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId: newPerson.id } })
-    dispatch({
-      type: 'ADD_EDGE',
-      payload: { edge: { id: crypto.randomUUID(), source: newPerson.id, target: personId, type: 'parent-child' } },
-    })
-  }, [dispatch, getExistingParents, personId, state.nodePositions])
-
-  const addSpouse = useCallback(() => {
-    const currPos = state.nodePositions[personId] ?? { x: 0, y: 0 }
-    const newPerson = createNewPerson({ shortName: 'Spouse', fullName: '' })
-    const spouseIds = getDirectSpouses()
-    const personX = currPos.x
-    const hasRight = spouseIds.some((id) => (state.nodePositions[id]?.x ?? 0) > personX)
-    const hasLeft = spouseIds.some((id) => (state.nodePositions[id]?.x ?? 0) < personX)
-    let newX: number
-    if (!hasRight) newX = personX + SPOUSE_PAIR_SPACING_X
-    else if (!hasLeft) newX = personX - SPOUSE_PAIR_SPACING_X
-    else {
-      const maxRight = Math.max(...spouseIds.map((id) => state.nodePositions[id]?.x ?? 0))
-      newX = maxRight + SPOUSE_PAIR_SPACING_X
-    }
-
-    const marriage = { dateISO: undefined as string | undefined, location: undefined as string | undefined }
-    dispatch({ type: 'ADD_PERSON', payload: { person: newPerson, position: { x: newX, y: currPos.y } } })
-    dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId: newPerson.id } })
-    dispatch({
-      type: 'ADD_EDGE',
-      payload: { edge: { id: crypto.randomUUID(), source: personId, target: newPerson.id, type: 'spouse', marriage } },
-    })
-    const existingA = person?.marriages ?? []
-    dispatch({
-      type: 'UPDATE_PERSON',
-      payload: { personId, patch: { marriages: [...existingA, { spouseId: newPerson.id, ...marriage }] } },
-    })
-    dispatch({
-      type: 'UPDATE_PERSON',
-      payload: { personId: newPerson.id, patch: { marriages: [{ spouseId: personId, ...marriage }] } },
-    })
-  }, [dispatch, getDirectSpouses, person, personId, state.nodePositions])
-
-  const addChild = useCallback(() => setChildModalOpen(true), [])
-
-  const onOpenEdit = useCallback(
-    () => dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId } }),
-    [dispatch, personId],
-  )
 
   const onCardDoubleClick = useCallback(
     (e: MouseEvent<HTMLDivElement>) => {
       if (e.button !== 0) return
       const el = e.target as HTMLElement
       if (el.closest('.react-flow__handle')) return
-      if (el.closest('.ftPersonCard__toolbar')) return
       e.stopPropagation()
       dispatch({ type: 'SET_SELECTED', payload: { personIds: [personId] } })
       dispatch({ type: 'OPEN_PERSON_FORM', payload: { personId } })
@@ -210,7 +126,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   return (
     <div
       className={`ftPersonCard ${selected ? 'selected' : ''} ${isNewlyAdded ? 'ftPersonCard--new' : ''} ${dragging ? 'ftPersonCard--dragging' : ''}`}
-      title={!selected ? 'Click to select. Click + Drag to move. Double-click to edit.' : undefined}
+      title={!selected ? 'Click to select · drag to move · double-click to edit · drag dots to connect' : undefined}
       onDoubleClick={onCardDoubleClick}
       style={{
         width: PERSON_CARD_W,
@@ -221,6 +137,12 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         transition: 'transform 120ms ease-out',
       }}
     >
+      {isNewlyAdded ? (
+        <div className="ftPersonCard__newBadge" aria-live="polite">
+          New
+        </div>
+      ) : null}
+
       {/* Oval portrait */}
       <div
         style={{
@@ -338,34 +260,9 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         ))}
       </div>
 
-      {/* Toolbar */}
-      {toolbarVisible && (
-        <div
-          className="ftPersonCard__toolbar"
-          style={{
-            position: 'absolute', left: '50%', bottom: 'calc(100% + 10px)',
-            transform: 'translateX(-50%)', zIndex: 12,
-            display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center',
-            pointerEvents: 'auto',
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <button className="ftNodeBtn" onClick={addParent} type="button">+ Parent</button>
-          <button className="ftNodeBtn" onClick={addSpouse} type="button">+ Spouse</button>
-          <button className="ftNodeBtn" onClick={addChild} type="button">+ Child</button>
-          <button className="ftNodeBtn" onClick={onOpenEdit} type="button">Edit</button>
-        </div>
-      )}
-
-      {!toolbarVisible && (
-        <div className="ftPersonCard__tooltip" aria-hidden="true">
-          Click to select. Click + Drag to move. Double-click to edit.
-        </div>
-      )}
-
-      {/* Extracted modals */}
-      {childModalOpen && <AddChildModal personId={personId} onClose={closeChildModal} />}
-      {parentModalOpen && <AddParentModal personId={personId} onClose={closeParentModal} />}
+      <div className="ftPersonCard__tooltip" aria-hidden="true">
+        Select · drag to move · double-click to edit · drag handles to connect
+      </div>
 
       {/* Lineage: one centered dot on top; three on the bottom. Sides = spouse. */}
       <Handle

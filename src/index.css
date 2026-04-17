@@ -710,38 +710,39 @@ code {
   cursor: pointer;
 }
 
-@keyframes ftNewCardPulseFade {
-  0% {
-    box-shadow: var(--card-shadow), 0 0 0 0 rgba(212, 169, 104, 0.9);
-    background: color-mix(in srgb, var(--card-bg), var(--accent) 12%);
-  }
-  35% {
-    box-shadow: var(--card-shadow), 0 0 0 10px rgba(212, 169, 104, 0.24);
-    background: color-mix(in srgb, var(--card-bg), var(--accent) 8%);
-  }
-  100% {
-    box-shadow: var(--card-shadow), 0 0 0 0 rgba(212, 169, 104, 0);
-    background: var(--card-bg);
-  }
+.ftPersonCard--new {
+  box-shadow:
+    var(--card-shadow),
+    0 0 0 1px color-mix(in srgb, var(--accent), transparent 55%),
+    0 6px 20px color-mix(in srgb, var(--accent), transparent 88%);
 }
 
-.ftPersonCard--new {
-  animation: ftNewCardPulseFade 4s ease-out forwards;
+.ftPersonCard__newBadge {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-h), var(--accent) 8%);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--bg), var(--accent) 22%) 0%,
+    color-mix(in srgb, var(--bg), transparent 8%) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 42%);
+  padding: 4px 11px;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 1px 0 color-mix(in srgb, white, transparent 70%);
+  pointer-events: none;
 }
 
 .ftPersonCard.selected,
 .ftPersonCard:active {
   cursor: grab;
-}
-
-.ftPersonCard__toolbar {
-  padding: 8px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg), transparent 6%);
-  border: 1px solid var(--accent-border);
-  box-shadow: var(--shadow);
-  width: max-content;
-  max-width: 260px;
 }
 
 .ftPersonCard__tooltip {

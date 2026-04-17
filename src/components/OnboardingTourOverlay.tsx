@@ -10,15 +10,15 @@ type TourStep = {
 const steps: TourStep[] = [
   {
     title: 'Add your first person',
-    body: 'Click on an empty spot of the canvas to create a new person card.',
+    body: 'Click “Add Person” to place a new card in view (you can drag it anywhere).',
   },
   {
     title: 'Add photos & details',
-    body: 'Double-click a card or click “Edit” to open details — add a photo (choose or paste) and adjust framing there.',
+    body: 'Double-click a card to open details — add a photo (choose or paste) and adjust framing there.',
   },
   {
     title: 'Build relationships and export',
-    body: 'Use “+ Spouse”, “+ Parent”, and “+ Child”. Select multiple nodes for Align/Distribute, then click “Export for Print”.',
+    body: 'Drag from the dots on card edges to connect parents, children, and spouses. Select multiple cards for Align/Distribute, then use “Export for Print”.',
   },
 ]
 
