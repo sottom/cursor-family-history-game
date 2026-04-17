@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
+import { computeCardAlignmentSnap } from '../utils/alignmentSnap'
 import {
   ReactFlow,
   Background,
   Controls,
   SelectionMode,
+  ViewportPortal,
   applyNodeChanges,
   type Edge,
   type Node,
@@ -25,6 +28,9 @@ import { parentSourceHandleId } from '../utils/parentHandles'
 
 type PersonNodeData = { personId: string }
 type PersonNodeType = Node<PersonNodeData, 'person'>
+
+/** Screen pixels — converted to flow units using zoom for consistent feel while panning/zooming */
+const ALIGNMENT_SNAP_SCREEN_PX = 8
 
 function hashColorFromId(id: string) {
   const palette = ['#b08f68', '#8e7f63', '#9f8671', '#7d776a', '#b48a6a', '#8d6f58']
@@ -54,6 +60,12 @@ export default function FamilyCanvas() {
 
   const [nodes, setNodes] = useState<PersonNodeType[]>(derivedNodes)
   useEffect(() => { setNodes(derivedNodes) }, [derivedNodes])
+
+  const [alignmentGuides, setAlignmentGuides] = useState<{
+    vertical: { x: number; y1: number; y2: number } | null
+    horizontal: { y: number; x1: number; x2: number } | null
+    zoom: number
+  }>({ vertical: null, horizontal: null, zoom: 1 })
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -110,8 +122,71 @@ export default function FamilyCanvas() {
     dispatch({ type: 'SET_NODE_POSITIONS_BULK', payload: { positions: next } })
   }, [dispatch, state.edges, state.persons])
 
+  const onNodeDrag = useCallback(
+    (_: MouseEvent, _node: PersonNodeType, draggedNodes: PersonNodeType[]) => {
+      const rf = getReactFlowInstance()
+      if (!rf || draggedNodes.length === 0) return
+
+      const zoom = rf.getZoom()
+      const thresholdFlow = ALIGNMENT_SNAP_SCREEN_PX / zoom
+      const dragIds = new Set(draggedNodes.map((n) => n.id))
+
+      const all = rf.getNodes() as PersonNodeType[]
+      const otherTopLefts = all
+        .filter((n) => n.type === 'person' && !dragIds.has(n.id))
+        .map((n) => ({ x: n.position.x, y: n.position.y }))
+
+      const draggedTopLefts = draggedNodes.map((n) => ({ x: n.position.x, y: n.position.y }))
+
+      const { dx, dy, verticalGuide, horizontalGuide } = computeCardAlignmentSnap(
+        draggedTopLefts,
+        otherTopLefts,
+        PERSON_CARD_W,
+        PERSON_CARD_H,
+        thresholdFlow,
+      )
+
+      if (dx !== 0 || dy !== 0) {
+        setNodes((prev) =>
+          prev.map((n) => {
+            if (!dragIds.has(n.id)) return n
+            const d = draggedNodes.find((x) => x.id === n.id)
+            if (!d) return n
+            return {
+              ...n,
+              position: { x: d.position.x + dx, y: d.position.y + dy },
+            }
+          }),
+        )
+      }
+
+      setAlignmentGuides((prev) => {
+        const v = verticalGuide
+        const h = horizontalGuide
+        const sameV =
+          (prev.vertical === null && v === null) ||
+          (prev.vertical !== null &&
+            v !== null &&
+            prev.vertical.x === v.x &&
+            prev.vertical.y1 === v.y1 &&
+            prev.vertical.y2 === v.y2)
+        const sameH =
+          (prev.horizontal === null && h === null) ||
+          (prev.horizontal !== null &&
+            h !== null &&
+            prev.horizontal.y === h.y &&
+            prev.horizontal.x1 === h.x1 &&
+            prev.horizontal.x2 === h.x2)
+        if (sameV && sameH && prev.zoom === zoom) return prev
+        return { vertical: v, horizontal: h, zoom }
+      })
+    },
+    [],
+  )
+
   const onNodeDragStop = useCallback(
     (_: MouseEvent, _node: PersonNodeType, draggedNodes: PersonNodeType[]) => {
+      setAlignmentGuides({ vertical: null, horizontal: null, zoom: 1 })
       const positions: Record<string, NodePosition> = {}
       for (const n of draggedNodes) {
         positions[n.id] = n.position as NodePosition
@@ -170,6 +245,7 @@ export default function FamilyCanvas() {
           const rest = changes.filter((c) => c.type !== 'remove')
           if (rest.length > 0) setNodes((prev) => applyNodeChanges(rest, prev) as PersonNodeType[])
         }}
+        onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         onEdgesChange={(changes: EdgeChange[]) => { void changes }}
         onConnect={(connection) => {
@@ -201,6 +277,51 @@ export default function FamilyCanvas() {
         }}
       >
         <Background gap={18} size={1} />
+        <ViewportPortal>
+          {(alignmentGuides.vertical != null || alignmentGuides.horizontal != null) && (
+            <svg
+              className="ftAlignmentGuides"
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: 1,
+                height: 1,
+                overflow: 'visible',
+                pointerEvents: 'none',
+                zIndex: 6,
+              }}
+              aria-hidden
+            >
+              {alignmentGuides.vertical != null && (
+                <line
+                  x1={alignmentGuides.vertical.x}
+                  y1={alignmentGuides.vertical.y1}
+                  x2={alignmentGuides.vertical.x}
+                  y2={alignmentGuides.vertical.y2}
+                  stroke="#e01818"
+                  strokeOpacity={0.98}
+                  strokeWidth={1.5 / alignmentGuides.zoom}
+                  strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
+                  strokeLinecap="round"
+                />
+              )}
+              {alignmentGuides.horizontal != null && (
+                <line
+                  x1={alignmentGuides.horizontal.x1}
+                  y1={alignmentGuides.horizontal.y}
+                  x2={alignmentGuides.horizontal.x2}
+                  y2={alignmentGuides.horizontal.y}
+                  stroke="#e01818"
+                  strokeOpacity={0.98}
+                  strokeWidth={1.1 / alignmentGuides.zoom}
+                  strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
+                  strokeLinecap="round"
+                />
+              )}
+            </svg>
+          )}
+        </ViewportPortal>
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
