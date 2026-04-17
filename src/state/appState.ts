@@ -336,15 +336,53 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'ADD_EDGE': {
       const { edge } = action.payload
+      if (edge.type === 'parent-child') {
+        const dup = state.edges.some(
+          (e) => e.type === 'parent-child' && e.source === edge.source && e.target === edge.target,
+        )
+        if (dup) return state
+      }
+      if (edge.type === 'spouse') {
+        const dup = state.edges.some(
+          (e) =>
+            e.type === 'spouse' &&
+            ((e.source === edge.source && e.target === edge.target) ||
+              (e.source === edge.target && e.target === edge.source)),
+        )
+        if (dup) return state
+      }
       return {
         ...state,
         edges: [...state.edges, edge],
       }
     }
     case 'REMOVE_EDGE': {
+      const { edgeId } = action.payload
+      const removed = state.edges.find((e) => e.id === edgeId)
+      let persons = state.persons
+      if (removed?.type === 'spouse') {
+        const a = removed.source
+        const b = removed.target
+        let nextPersons = { ...state.persons }
+        const strip = (personId: string, spouseId: string) => {
+          const p = nextPersons[personId]
+          if (!p) return
+          nextPersons = {
+            ...nextPersons,
+            [personId]: {
+              ...p,
+              marriages: (p.marriages ?? []).filter((m) => m.spouseId !== spouseId),
+            },
+          }
+        }
+        strip(a, b)
+        strip(b, a)
+        persons = nextPersons
+      }
       return {
         ...state,
-        edges: state.edges.filter((e) => e.id !== action.payload.edgeId),
+        persons,
+        edges: state.edges.filter((e) => e.id !== edgeId),
       }
     }
     case 'SET_SELECTED': {

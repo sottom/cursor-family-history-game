@@ -25,7 +25,6 @@ function cardCenterX(personId: string, nodePositions: Record<string, NodePositio
 
 /**
  * Whether this person is left or right of their spouse(s)' average position on the canvas.
- * Used to place exclusive-child handles on the outer bottom edge (away from the spouse).
  */
 export function marriageSideRelative(
   personId: string,
@@ -60,104 +59,29 @@ export function isJointChildWithSpouse(parentId: string, childId: string, edges:
   return false
 }
 
-/** Bottom-edge zones (percent of card width) for handle centers. */
-const ZONE_INNER_LO = 62
-const ZONE_INNER_HI = 94
-const ZONE_OUTER_LO = 6
-const ZONE_OUTER_HI = 38
-
 /**
- * Parent→child edges in visual order (left → right on the card), matching `parent-N` handle ids.
- */
-export function rankedParentChildEdges(parentId: string, edges: Edge[], nodePositions: Record<string, NodePosition>): Edge[] {
-  const outgoing = edges.filter((e) => e.type === 'parent-child' && e.source === parentId)
-  const side = marriageSideRelative(parentId, edges, nodePositions)
-
-  const withMeta = outgoing.map((e) => ({
-    e,
-    joint: isJointChildWithSpouse(parentId, e.target, edges),
-    target: e.target,
-  }))
-
-  withMeta.sort((a, b) => {
-    if (side === 'none') {
-      if (a.joint !== b.joint) return a.joint ? -1 : 1
-      return a.target.localeCompare(b.target)
-    }
-    if (side === 'left') {
-      // Outer (exclusive) handles on the left; joint toward spouse on the right.
-      if (a.joint !== b.joint) return a.joint ? 1 : -1
-      return a.target.localeCompare(b.target)
-    }
-    // side === 'right': joint toward spouse (left); exclusive on the outer right.
-    if (a.joint !== b.joint) return a.joint ? -1 : 1
-    return a.target.localeCompare(b.target)
-  })
-
-  return withMeta.map((x) => x.e)
-}
-
-/**
- * Left position (%) for each bottom source handle, same length and order as `rankedParentChildEdges`
- * (and at least one slot when there are no edges yet).
+ * Handles are centered on the bottom edge (one source slot for all parent→child links).
  */
 export function computeParentHandleLeftPercents(
-  personId: string,
-  edges: Edge[],
-  nodePositions: Record<string, NodePosition>,
+  _personId: string,
+  _edges: Edge[],
+  _nodePositions: Record<string, NodePosition>,
 ): number[] {
-  const ranked = rankedParentChildEdges(personId, edges, nodePositions)
-  const side = marriageSideRelative(personId, edges, nodePositions)
-
-  if (ranked.length === 0) return [50]
-
-  const n = ranked.length
-  const joint = ranked.map((e) => isJointChildWithSpouse(personId, e.target, edges))
-  const jCount = joint.filter(Boolean).length
-  const eCount = n - jCount
-
-  const pct = (lo: number, hi: number, i: number, count: number) =>
-    lo + ((i + 0.5) / count) * (hi - lo)
-
-  if (side === 'none') {
-    return ranked.map((_, i) => pct(8, 92, i, n))
-  }
-
-  let ji = 0
-  let ei = 0
-  return ranked.map((e) => {
-    const isJ = isJointChildWithSpouse(personId, e.target, edges)
-    if (side === 'left') {
-      if (!isJ) {
-        return pct(ZONE_OUTER_LO, ZONE_OUTER_HI, ei++, eCount)
-      }
-      return pct(ZONE_INNER_LO, ZONE_INNER_HI, ji++, jCount)
-    }
-    // right spouse
-    if (isJ) {
-      return pct(ZONE_OUTER_LO, ZONE_OUTER_HI, ji++, jCount)
-    }
-    return pct(ZONE_INNER_LO, ZONE_INNER_HI, ei++, eCount)
-  })
+  return [50]
 }
 
 /**
- * Slot index for this parent→child edge along the bottom of the parent card.
+ * Single centered parent source handle (`parent-0`) for all outgoing parent→child edges.
  */
-export function parentChildSourceHandleIndex(edge: Edge, edges: Edge[], nodePositions: Record<string, NodePosition>): number {
-  if (edge.type !== 'parent-child') return 0
-  const parentId = edge.source
-  const ranked = rankedParentChildEdges(parentId, edges, nodePositions)
-  const idx = ranked.findIndex((e) => e.id === edge.id)
-  return idx >= 0 ? idx : 0
+export function parentChildSourceHandleIndex(_edge: Edge, _edges: Edge[], _nodePositions: Record<string, NodePosition>): number {
+  return 0
 }
 
-export function parentSourceHandleId(edge: Edge, edges: Edge[], nodePositions: Record<string, NodePosition>): string {
-  return `parent-${parentChildSourceHandleIndex(edge, edges, nodePositions)}`
+export function parentSourceHandleId(_edge: Edge, _edges: Edge[], _nodePositions: Record<string, NodePosition>): string {
+  return 'parent-0'
 }
 
-/** Number of bottom source handles (at least one for new connections). */
-export function parentSourceHandleCount(personId: string, edges: Edge[]): number {
-  const n = edges.filter((e) => e.type === 'parent-child' && e.source === personId).length
-  return Math.max(1, n)
+/** One bottom source handle; all parent→child edges attach to `parent-0`. */
+export function parentSourceHandleCount(_personId: string, _edges: Edge[]): number {
+  return 1
 }

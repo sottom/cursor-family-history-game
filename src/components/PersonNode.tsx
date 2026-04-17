@@ -2,7 +2,6 @@ import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createNewPerson, type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, SPOUSE_PAIR_SPACING_X } from '../state/appState'
-import { computeParentHandleLeftPercents, parentSourceHandleCount } from '../utils/parentHandles'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { ingestPersonPhotoBlob, getBlob } from '../storage/indexedDb'
 import { PHOTO_MAIN_FRAME, PHOTO_THUMB_FRAME } from '../config/cardLayout'
@@ -64,6 +63,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [childModalOpen, setChildModalOpen] = useState(false)
   const [parentModalOpen, setParentModalOpen] = useState(false)
+  const [hoveredHandleKey, setHoveredHandleKey] = useState<string | null>(null)
 
   const closeChildModal = useCallback(() => setChildModalOpen(false), [])
   const closeParentModal = useCallback(() => setParentModalOpen(false), [])
@@ -186,16 +186,6 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     [dispatch, personId],
   )
 
-  const parentOutHandleCount = useMemo(
-    () => parentSourceHandleCount(personId, state.edges),
-    [personId, state.edges],
-  )
-
-  const parentHandleLeftPercents = useMemo(
-    () => computeParentHandleLeftPercents(personId, state.edges, state.nodePositions),
-    [personId, state.edges, state.nodePositions],
-  )
-
   const marriageSummary = useMemo(() => {
     if (!person?.marriages?.length) return 'Marriages: \u2014'
     const lines = person.marriages.slice(0, 2).map((m) => {
@@ -209,6 +199,39 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     const extra = person.marriages.length > 2 ? ` (+${person.marriages.length - 2} more)` : ''
     return `Marriages: ${lines.join('; ')}${extra}`
   }, [person?.marriages, state.persons])
+
+  /** Visible hit targets; must sit above card content (z-index) so they show and receive drags. */
+  const hz = {
+    lineage: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      background: 'var(--bg)',
+      border: '1.5px solid var(--accent)',
+      boxShadow: '0 1px 3px rgba(60, 40, 20, 0.16)',
+      zIndex: 24,
+    } as const,
+    spouse: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      background: 'var(--bg)',
+      border: '1.5px solid #b79c7a',
+      boxShadow: '0 1px 3px rgba(60, 40, 20, 0.16)',
+      zIndex: 24,
+    } as const,
+  }
+
+  const handlePointer = (key: string) => ({
+    onPointerEnter: () => setHoveredHandleKey(key),
+    onPointerLeave: () => setHoveredHandleKey((h) => (h === key ? null : h)),
+  })
+
+  const withHoverScale = (key: string, baseTransform: string, style: Record<string, unknown>) => ({
+    ...style,
+    transform: `${baseTransform} scale(${hoveredHandleKey === key ? 3 : 1})`,
+    transition: 'transform 0.14s ease-out',
+  })
 
   return (
     <div
@@ -225,25 +248,6 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         position: 'relative',
       }}
     >
-      {/* Handles */}
-      <Handle type="target" position={Position.Top} id="child" style={{ background: 'transparent', border: 0 }} />
-      {Array.from({ length: parentOutHandleCount }, (_, i) => (
-        <Handle
-          key={`parent-src-${i}`}
-          type="source"
-          position={Position.Bottom}
-          id={`parent-${i}`}
-          style={{
-            background: 'transparent',
-            border: 0,
-            left: `${parentHandleLeftPercents[i] ?? 50}%`,
-            transform: 'translate(-50%, 0)',
-          }}
-        />
-      ))}
-      <Handle type="source" position={Position.Right} id="spouse-right" style={{ background: 'transparent', border: 0 }} />
-      <Handle type="target" position={Position.Left} id="spouse-left" style={{ background: 'transparent', border: 0 }} />
-
       {/* Thumbnail photo */}
       <div
         style={{
@@ -343,6 +347,64 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           </div>
         )}
       </div>
+
+      {/* Handles on top so they’re visible and not covered by photos/text. Top/bottom = lineage; sides = spouse. */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="to-parent"
+        title="Drag to a parent’s bottom-center dot to link as their child"
+        {...handlePointer(`${personId}:to-parent`)}
+        style={withHoverScale(`${personId}:to-parent`, 'translate(-50%, -50%)', { ...hz.lineage, left: '50%', zIndex: 24 })}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="child"
+        title="Parent → child (incoming)"
+        {...handlePointer(`${personId}:child`)}
+        style={withHoverScale(`${personId}:child`, 'translate(-50%, -50%)', { ...hz.lineage, left: '50%', zIndex: 25 })}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="parent-accept"
+        title="Drop from a child’s top (outgoing) dot"
+        {...handlePointer(`${personId}:parent-accept`)}
+        style={withHoverScale(`${personId}:parent-accept`, 'translate(-50%, 50%)', {
+          ...hz.lineage,
+          left: '50%',
+          zIndex: 24,
+        })}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="parent-0"
+        title="Drag to a child’s top-center dot"
+        {...handlePointer(`${personId}:parent-0`)}
+        style={withHoverScale(`${personId}:parent-0`, 'translate(-50%, 50%)', {
+          ...hz.lineage,
+          left: '50%',
+          zIndex: 25,
+        })}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="spouse-right"
+        title="Marriage"
+        {...handlePointer(`${personId}:spouse-right`)}
+        style={withHoverScale(`${personId}:spouse-right`, 'translate(50%, -50%)', { ...hz.spouse, top: '50%' })}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="spouse-left"
+        title="Marriage"
+        {...handlePointer(`${personId}:spouse-left`)}
+        style={withHoverScale(`${personId}:spouse-left`, 'translate(-50%, -50%)', { ...hz.spouse, top: '50%' })}
+      />
     </div>
   )
 }

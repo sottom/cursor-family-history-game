@@ -7,7 +7,9 @@ import {
   Controls,
   SelectionMode,
   ViewportPortal,
+  applyEdgeChanges,
   applyNodeChanges,
+  type Connection,
   type Edge,
   type Node,
   type EdgeChange,
@@ -83,7 +85,104 @@ export default function FamilyCanvas() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [dispatch, state.selectedPersonIds])
 
-  const edges = useMemo<Edge[]>(
+  const isValidConnection = useCallback((connection: Connection | Edge) => {
+    if (!connection.source || !connection.target || connection.source === connection.target) return false
+    const sh = connection.sourceHandle ?? null
+    const th = connection.targetHandle ?? null
+    if (sh === 'spouse-right' && th === 'spouse-left') return true
+    if (sh?.startsWith('parent') && th === 'child') return true
+    if (sh === 'to-parent' && th === 'parent-accept') return true
+    return false
+  }, [])
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const sh = connection.sourceHandle
+      const th = connection.targetHandle
+      if (!connection.source || !connection.target) return
+
+      if (sh === 'spouse-right' && th === 'spouse-left') {
+        const a = connection.source
+        const b = connection.target
+        if (a === b) return
+        const exists = state.edges.some(
+          (e) =>
+            e.type === 'spouse' &&
+            ((e.source === a && e.target === b) || (e.source === b && e.target === a)),
+        )
+        if (exists) return
+
+        const marriage = { dateISO: undefined as string | undefined, location: undefined as string | undefined }
+        const edgeId = crypto.randomUUID()
+        dispatch({
+          type: 'ADD_EDGE',
+          payload: { edge: { id: edgeId, source: a, target: b, type: 'spouse', marriage } },
+        })
+
+        const pa = state.persons[a]
+        const pb = state.persons[b]
+        if (pa) {
+          dispatch({
+            type: 'UPDATE_PERSON',
+            payload: {
+              personId: a,
+              patch: { marriages: [...(pa.marriages ?? []), { spouseId: b, ...marriage }] },
+            },
+          })
+        }
+        if (pb) {
+          dispatch({
+            type: 'UPDATE_PERSON',
+            payload: {
+              personId: b,
+              patch: { marriages: [...(pb.marriages ?? []), { spouseId: a, ...marriage }] },
+            },
+          })
+        }
+        return
+      }
+
+      let parentId: string
+      let childId: string
+      if (sh?.startsWith('parent') && th === 'child') {
+        parentId = connection.source
+        childId = connection.target
+      } else if (sh === 'to-parent' && th === 'parent-accept') {
+        childId = connection.source
+        parentId = connection.target
+      } else {
+        return
+      }
+
+      if (parentId === childId) return
+      const exists = state.edges.some(
+        (e) => e.type === 'parent-child' && e.source === parentId && e.target === childId,
+      )
+      if (exists) return
+
+      dispatch({
+        type: 'ADD_EDGE',
+        payload: {
+          edge: { id: crypto.randomUUID(), source: parentId, target: childId, type: 'parent-child' },
+        },
+      })
+    },
+    [dispatch, state.edges, state.persons],
+  )
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const removals = changes.filter((c) => c.type === 'remove')
+      for (const c of removals) {
+        if (c.type === 'remove') dispatch({ type: 'REMOVE_EDGE', payload: { edgeId: c.id } })
+      }
+      const rest = changes.filter((c) => c.type !== 'remove')
+      if (rest.length > 0) setRfEdges((eds) => applyEdgeChanges(rest, eds) as Edge[])
+    },
+    [dispatch],
+  )
+
+  const derivedFlowEdges = useMemo<Edge[]>(
     () =>
       state.edges.map((edge: AppEdge) => {
         if (edge.type === 'spouse') {
@@ -100,6 +199,7 @@ export default function FamilyCanvas() {
             targetHandle: 'spouse-left',
             style: { stroke: '#b79c7a', strokeWidth: 1.5, strokeDasharray: '4 4' },
             data: { relationshipType: edge.type, marriage: edge.marriage },
+            interactionWidth: 28,
           }
         }
 
@@ -112,10 +212,22 @@ export default function FamilyCanvas() {
           targetHandle: 'child',
           style: { stroke: hashColorFromId(edge.source), strokeWidth: 1.6 },
           data: { relationshipType: edge.type },
+          interactionWidth: 28,
         }
       }),
     [state.edges, state.nodePositions],
   )
+
+  const [rfEdges, setRfEdges] = useState<Edge[]>([])
+  useEffect(() => {
+    setRfEdges((prev) => {
+      const selectedIds = new Set(prev.filter((e) => e.selected).map((e) => e.id))
+      return derivedFlowEdges.map((e) => ({
+        ...e,
+        selected: selectedIds.has(e.id),
+      }))
+    })
+  }, [derivedFlowEdges])
 
   const onAutoLayout = useCallback(() => {
     const next = layoutDagre(state.persons, state.edges)
@@ -219,12 +331,12 @@ export default function FamilyCanvas() {
         <div className="ftCanvas__help">
           {isPlacingNode
             ? 'Click anywhere on the canvas to place the new card. Press Esc to cancel.'
-            : 'Select a card to edit it or add parents, spouses, children, and photos.'}
+            : 'Drag from card edges to connect: top/bottom = parent–child, sides = marriage. Click a line and press Delete to remove it.'}
         </div>
       </div>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={rfEdges}
         nodeTypes={nodeTypes}
         selectionOnDrag
         selectionMode={SelectionMode.Partial}
@@ -233,9 +345,13 @@ export default function FamilyCanvas() {
         fitView
         nodesDraggable
         nodesConnectable
+        deleteKeyCode={['Backspace', 'Delete']}
         panOnScroll
         zoomOnScroll
         panOnDrag
+        defaultEdgeOptions={{ selectable: true, focusable: true }}
+        edgesReconnectable={false}
+        isValidConnection={isValidConnection}
         attributionPosition="bottom-left"
         className={`ftReactFlow ${isPlacingNode ? 'ftReactFlow--placing' : 'ftReactFlow--browse'}`}
         onInit={(instance) => setReactFlowInstance(instance)}
@@ -247,18 +363,8 @@ export default function FamilyCanvas() {
         }}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
-        onEdgesChange={(changes: EdgeChange[]) => { void changes }}
-        onConnect={(connection) => {
-          const sh = connection.sourceHandle
-          const th = connection.targetHandle
-          if (!sh || !th || !sh.startsWith('parent') || !th.startsWith('child')) return
-          dispatch({
-            type: 'ADD_EDGE',
-            payload: {
-              edge: { id: crypto.randomUUID(), source: connection.source, target: connection.target, type: 'parent-child' },
-            },
-          })
-        }}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
         onSelectionChange={({ nodes: sel }) => {
           const ids = sel.map((n) => (n.data as PersonNodeData).personId)
           if (ids.length === state.selectedPersonIds.length && ids.every((id, i) => id === state.selectedPersonIds[i])) return
