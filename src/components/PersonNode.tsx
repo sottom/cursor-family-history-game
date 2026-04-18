@@ -5,11 +5,10 @@ import { type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, PERSON_MAIN_OVAL_BOT
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { getBlob, ingestPersonPhotoBlob } from '../storage/indexedDb'
 import { getLibraryPhotoDragId, resolveLibraryPhotoIdFromDrop, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
+import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
-
-const STATUS_DOT_COUNT = 3
 
 /** Loads portrait bytes; `contentRevision` busts cache when IndexedDB is overwritten under the same blob key. */
 function useBlobUrl(blobKey: string | undefined, contentRevision: number | undefined) {
@@ -51,6 +50,9 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const photoMainTransform: PhotoTransform = person?.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
   const [hoveredHandleKey, setHoveredHandleKey] = useState<string | null>(null)
+
+  const startYear = useMemo(() => getTimelineStartYear(state), [state.persons])
+  const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
 
   const onCardDoubleClick = useCallback(
     (e: MouseEvent<HTMLDivElement>) => {
@@ -280,16 +282,16 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           pointerEvents: 'none',
         }}
       >
-        {Array.from({ length: STATUS_DOT_COUNT }).map((_, idx) => (
+        {timelineSpots.map((spot, idx) => (
           <div
             key={`${personId}-status-${idx}`}
             style={{
               width: 20,
               height: 20,
               borderRadius: '50%',
-              border: '3px solid #1b0f0f',
-              boxShadow: selected ? '0 0 0 2px color-mix(in srgb, var(--accent), white 20%)' : 'none',
-              background: 'transparent',
+              border: spot.color ? `3px solid ${spot.color}` : '3px solid transparent',
+              boxShadow: (selected && spot.color) ? '0 0 0 2px color-mix(in srgb, var(--accent), white 20%)' : 'none',
+              background: spot.color ? spot.color : 'transparent',
               transition: 'box-shadow 140ms ease-out',
             }}
           />

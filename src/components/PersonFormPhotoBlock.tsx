@@ -10,10 +10,9 @@ import {
   type PhotoTransform,
 } from '../state/appState'
 import { getBlob, getOriginalBlobKey, ingestPersonPhotoBlob } from '../storage/indexedDb'
+import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 
 type FramingVariant = 'photoMain' | 'photoThumb'
-
-const NODE_STATUS_DOT_COUNT = 3
 
 const DEFAULT_TRANSFORM: PhotoTransform = { xPercent: 0, yPercent: 0, scale: 1 }
 
@@ -299,6 +298,9 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
     [person?.fullName, person?.shortName],
   )
 
+  const startYear = useMemo(() => getTimelineStartYear(state), [state.persons])
+  const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
+
   if (!person) return null
 
   const frameLabel =
@@ -398,8 +400,15 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
               {displayName}
             </div>
             <div style={CANVAS_STATUS_ROW} aria-hidden>
-              {Array.from({ length: NODE_STATUS_DOT_COUNT }).map((_, idx) => (
-                <div key={`preview-dot-${idx}`} style={CANVAS_STATUS_DOT} />
+              {timelineSpots.map((spot, idx) => (
+                <div 
+                  key={`preview-dot-${idx}`} 
+                  style={{
+                    ...CANVAS_STATUS_DOT,
+                    border: spot.color ? `3px solid ${spot.color}` : '3px solid transparent',
+                    background: spot.color ? spot.color : 'transparent',
+                  }} 
+                />
               ))}
             </div>
           </div>

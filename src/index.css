@@ -1210,3 +1210,47 @@ code {
     flex: 1 1 calc(50% - 8px);
   }
 }
+
+/* --- Tree export capture mode -----------------------------------------
+   Applied briefly to .ftCanvas while we rasterize the React Flow viewport
+   for PNG export. Strips every piece of UI chrome, selection state, and
+   the grid background so only the person cards + relationship edges end
+   up in the captured image. Also neutralizes selection scale / animations
+   that would otherwise make the output blurry or inconsistent. */
+.ftCanvas--exporting .ftCanvas__actions,
+.ftCanvas--exporting .ftAlignToolbar,
+.ftCanvas--exporting .ftPhotoLibraryPanel,
+.ftCanvas--exporting > .ftBtn,
+.ftCanvas--exporting .react-flow__controls,
+.ftCanvas--exporting .react-flow__attribution,
+.ftCanvas--exporting .react-flow__panel,
+.ftCanvas--exporting .react-flow__background,
+.ftCanvas--exporting .react-flow__handle,
+.ftCanvas--exporting .react-flow__minimap,
+.ftCanvas--exporting .ftAlignmentGuides,
+.ftCanvas--exporting .ftPersonCard__tooltip,
+.ftCanvas--exporting .ftPersonCard__newBadge {
+  display: none !important;
+}
+
+.ftCanvas--exporting,
+.ftCanvas--exporting .ftReactFlow,
+.ftCanvas--exporting .react-flow,
+.ftCanvas--exporting .react-flow__renderer,
+.ftCanvas--exporting .react-flow__pane,
+.ftCanvas--exporting .react-flow__viewport {
+  background: transparent !important;
+  --xy-background-color: transparent !important;
+}
+
+.ftCanvas--exporting .ftReactFlow {
+  overflow: visible !important;
+}
+
+.ftCanvas--exporting .ftPersonCard,
+.ftCanvas--exporting .ftPersonCard.selected {
+  transform: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+
