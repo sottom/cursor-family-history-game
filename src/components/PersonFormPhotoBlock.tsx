@@ -83,8 +83,9 @@ const CANVAS_STATUS_ROW: CSSProperties = {
 const CANVAS_STATUS_DOT: CSSProperties = {
   width: 20,
   height: 20,
+  boxSizing: 'border-box',
   borderRadius: '50%',
-  border: '3px solid #1b0f0f',
+  border: '1px solid transparent',
   boxShadow: 'none',
   background: 'transparent',
 }
@@ -401,13 +402,13 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
             </div>
             <div style={CANVAS_STATUS_ROW} aria-hidden>
               {timelineSpots.map((spot, idx) => (
-                <div 
-                  key={`preview-dot-${idx}`} 
+                <div
+                  key={`preview-dot-${idx}`}
                   style={{
                     ...CANVAS_STATUS_DOT,
-                    border: spot.color ? `3px solid ${spot.color}` : '3px solid transparent',
+                    border: spot.color ? '1px solid #1b0f0f' : '1px solid transparent',
                     background: spot.color ? spot.color : 'transparent',
-                  }} 
+                  }}
                 />
               ))}
             </div>

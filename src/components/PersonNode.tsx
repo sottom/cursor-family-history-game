@@ -288,9 +288,10 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
             style={{
               width: 20,
               height: 20,
+              boxSizing: 'border-box',
               borderRadius: '50%',
-              border: spot.color ? `3px solid ${spot.color}` : '3px solid transparent',
-              boxShadow: (selected && spot.color) ? '0 0 0 2px color-mix(in srgb, var(--accent), white 20%)' : 'none',
+              border: spot.color ? '1px solid #1b0f0f' : '1px solid transparent',
+              boxShadow: selected && spot.color ? '0 0 0 2px color-mix(in srgb, var(--accent), white 20%)' : 'none',
               background: spot.color ? spot.color : 'transparent',
               transition: 'box-shadow 140ms ease-out',
             }}
