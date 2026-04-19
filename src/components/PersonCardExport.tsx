@@ -1,6 +1,7 @@
 import type { Person } from '../state/appState'
 import { PERSON_CARD_H, PERSON_CARD_W, type PhotoTransform } from '../state/appState'
 import { PHOTO_MAIN_FRAME, PHOTO_THUMB_FRAME } from '../config/cardLayout'
+import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
 
 import { useAppState } from '../state/AppProvider'
 
@@ -8,13 +9,6 @@ function fmtDateOrEmpty(dateISO?: string) {
   if (!dateISO) return ''
   if (dateISO.length >= 4) return dateISO.slice(0, 10)
   return dateISO
-}
-
-function photoTransformToStyle(transform: PhotoTransform) {
-  return {
-    translate: `translate(${transform.xPercent}%, ${transform.yPercent}%)`,
-    scale: transform.scale,
-  }
 }
 
 export default function PersonCardExport(props: {
@@ -29,8 +23,8 @@ export default function PersonCardExport(props: {
   const photoMainTransform: PhotoTransform = person.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
   const photoThumbTransform: PhotoTransform = person.photoThumb?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
-  const main = photoTransformToStyle(photoMainTransform)
-  const thumb = photoTransformToStyle(photoThumbTransform)
+  const mainFrameStyle = personPhotoFrameWrapperStyle(photoMainTransform)
+  const thumbFrameStyle = personPhotoFrameWrapperStyle(photoThumbTransform)
 
   return (
     <div
@@ -58,12 +52,12 @@ export default function PersonCardExport(props: {
           background: '#f6f6f6',
         }}
       >
-        <div style={{ width: '100%', height: '100%', transform: thumb.translate }}>
+        <div style={thumbFrameStyle}>
           {props.photoThumbUrl ? (
             <img
               src={props.photoThumbUrl}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'contain', transform: `scale(${thumb.scale})` }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           ) : null}
         </div>
@@ -82,12 +76,12 @@ export default function PersonCardExport(props: {
           background: '#f6f6f6',
         }}
       >
-        <div style={{ width: '100%', height: '100%', transform: main.translate }}>
+        <div style={mainFrameStyle}>
           {props.photoMainUrl ? (
             <img
               src={props.photoMainUrl}
               alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'contain', transform: `scale(${main.scale})` }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           ) : null}
         </div>

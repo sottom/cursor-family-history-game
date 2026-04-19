@@ -4,17 +4,26 @@ import { useAppDispatch, useAppState } from '../state/AppProvider'
 import type { Person } from '../state/appState'
 import {
   PERSON_CARD_H,
+  PERSON_CARD_NAME_BAR_BOTTOM,
+  PERSON_CARD_OVAL_HORIZONTAL_INSET,
+  PERSON_CARD_OVAL_TOP_INSET,
+  PERSON_CARD_STATUS_DOT_PX,
   PERSON_CARD_W,
   PERSON_MAIN_OVAL_BOTTOM_INSET,
   type PhotoRef,
   type PhotoTransform,
 } from '../state/appState'
 import { getBlob, getOriginalBlobKey, ingestPersonPhotoBlob } from '../storage/indexedDb'
+import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
 import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 
 type FramingVariant = 'photoMain' | 'photoThumb'
 
 const DEFAULT_TRANSFORM: PhotoTransform = { xPercent: 0, yPercent: 0, scale: 1 }
+
+/** Wheel-zoom limits in the photo framing editor (portrait + thumbnail). */
+const PHOTO_FRAMING_SCALE_MIN = 0.15
+const PHOTO_FRAMING_SCALE_MAX = 40
 
 function transformsEqual(a: PhotoTransform, b: PhotoTransform): boolean {
   return a.xPercent === b.xPercent && a.yPercent === b.yPercent && a.scale === b.scale
@@ -31,13 +40,13 @@ const CANVAS_CARD_SHELL: CSSProperties = {
 /** Oval photo region — same box model as canvas (`left/right/top/bottom` + `borderRadius: 50%`). */
 const CANVAS_OVAL_SHELL: CSSProperties = {
   position: 'absolute',
-  left: 0,
-  right: 0,
-  top: 0,
+  left: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+  right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+  top: PERSON_CARD_OVAL_TOP_INSET,
   bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
   borderRadius: '50%',
   overflow: 'hidden',
-  border: '3px solid #1b0f0f',
+  border: '8px solid #095e29',
   background: '#d5c2a7',
   boxShadow: 'var(--card-shadow)',
   touchAction: 'none',
@@ -45,47 +54,49 @@ const CANVAS_OVAL_SHELL: CSSProperties = {
 
 const CANVAS_NAME_BAR: CSSProperties = {
   position: 'absolute',
-  left: 10,
-  right: 10,
-  bottom: 28,
-  height: 28,
-  background: '#150b0b',
-  color: '#fefefe',
-  borderRadius: 6,
+  left: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+  right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+  bottom: PERSON_CARD_NAME_BAR_BOTTOM,
+  height: 76,
+  background: '#095e29',
+  color: '#ffffff',
+  borderRadius: 10,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   textAlign: 'center',
-  fontSize: 15,
+  fontSize: 26,
   fontWeight: 800,
-  lineHeight: 1,
-  padding: '0 8px',
-  whiteSpace: 'nowrap',
-  textOverflow: 'ellipsis',
+  lineHeight: 1.1,
+  padding: '4px 8px',
+  whiteSpace: 'normal',
+  wordBreak: 'break-word',
   overflow: 'hidden',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+  boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
   border: '2px solid transparent',
   pointerEvents: 'none',
+  zIndex: 2,
 }
 
 const CANVAS_STATUS_ROW: CSSProperties = {
   position: 'absolute',
   left: '50%',
-  bottom: 2,
+  bottom: 0,
   transform: 'translateX(-50%)',
   display: 'flex',
   gap: 6,
   alignItems: 'center',
   justifyContent: 'center',
   pointerEvents: 'none',
+  zIndex: 1,
 }
 
 const CANVAS_STATUS_DOT: CSSProperties = {
-  width: 20,
-  height: 20,
+  width: PERSON_CARD_STATUS_DOT_PX,
+  height: PERSON_CARD_STATUS_DOT_PX,
   boxSizing: 'border-box',
   borderRadius: '50%',
-  border: '1px solid transparent',
+  border: '2px solid transparent',
   boxShadow: 'none',
   background: 'transparent',
 }
@@ -206,10 +217,27 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
       if (!hasPhoto) return
       e.preventDefault()
       e.stopPropagation()
+      const rect = el.getBoundingClientRect()
+      const frameW = Math.max(1, rect.width)
+      const frameH = Math.max(1, rect.height)
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+
       const curr = draftRef.current
       const factor = Math.exp(-e.deltaY * 0.002)
-      const nextScale = Math.max(0.15, Math.min(8, curr.scale * factor))
-      const next = { ...curr, scale: nextScale }
+      const nextScale = Math.max(PHOTO_FRAMING_SCALE_MIN, Math.min(PHOTO_FRAMING_SCALE_MAX, curr.scale * factor))
+      if (nextScale === curr.scale) return
+
+      const k = nextScale / curr.scale
+      const tx0 = (curr.xPercent / 100) * frameW
+      const ty0 = (curr.yPercent / 100) * frameH
+      const tx1 = mx - k * (mx - tx0)
+      const ty1 = my - k * (my - ty0)
+      const next = {
+        xPercent: (tx1 / frameW) * 100,
+        yPercent: (ty1 / frameH) * 100,
+        scale: nextScale,
+      }
       if (variant === 'photoMain') {
         setDraftMain(next)
         draftMainRef.current = next
@@ -306,7 +334,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
 
   const frameLabel =
     framingVariant === 'photoMain'
-      ? 'Matches canvas card (220×340)'
+      ? `Matches canvas card (${PERSON_CARD_W}×${PERSON_CARD_H})`
       : 'Matches print card thumbnail (circular crop)'
 
   return (
@@ -359,13 +387,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                 }
               }}
             >
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  transform: `translate(${draftMain.xPercent}%, ${draftMain.yPercent}%)`,
-                }}
-              >
+              <div style={personPhotoFrameWrapperStyle(draftMain)}>
                 {blobUrl ? (
                   <img
                     src={blobUrl}
@@ -376,7 +398,6 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                       height: '100%',
                       objectFit: 'contain',
                       display: 'block',
-                      transform: `scale(${draftMain.scale})`,
                     }}
                   />
                 ) : (
@@ -406,7 +427,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                   key={`preview-dot-${idx}`}
                   style={{
                     ...CANVAS_STATUS_DOT,
-                    border: spot.color ? '1px solid #1b0f0f' : '1px solid transparent',
+                    border: spot.color ? '2px solid #1b0f0f' : '2px solid transparent',
                     background: spot.color ? spot.color : 'transparent',
                   }}
                 />
@@ -436,19 +457,13 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                 }
               }}
             >
-              <div
-                className="ftPersonFormPhoto__imgShift"
-                style={{
-                  transform: `translate(${draftThumb.xPercent}%, ${draftThumb.yPercent}%)`,
-                }}
-              >
+              <div className="ftPersonFormPhoto__imgShift" style={personPhotoFrameWrapperStyle(draftThumb)}>
                 {blobUrl ? (
                   <img
                     src={blobUrl}
                     alt=""
                     draggable={false}
                     className="ftPersonFormPhoto__img"
-                    style={{ transform: `scale(${draftThumb.scale})` }}
                   />
                 ) : (
                   <div className="ftPersonFormPhoto__empty">No photo yet</div>

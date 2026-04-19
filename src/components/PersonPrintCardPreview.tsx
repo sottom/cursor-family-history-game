@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppState } from '../state/AppProvider'
 import { PERSON_MAIN_OVAL_ASPECT_RATIO, type PhotoTransform } from '../state/appState'
 import { getBlob, getOriginalBlobKey } from '../storage/indexedDb'
+import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
 import { formatDateForPrintBadge, pickMarriageForPrintPreview } from '../utils/printCardDates'
 
 type Props = {
@@ -37,13 +38,7 @@ function PhotoInFrame({
         background: '#d5c2a7',
       }}
     >
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          transform: `translate(${transform.xPercent}%, ${transform.yPercent}%)`,
-        }}
-      >
+      <div style={personPhotoFrameWrapperStyle(transform)}>
         {url ? (
           <img
             src={url}
@@ -54,7 +49,6 @@ function PhotoInFrame({
               height: '100%',
               objectFit: 'contain',
               display: 'block',
-              transform: `scale(${transform.scale})`,
             }}
           />
         ) : (

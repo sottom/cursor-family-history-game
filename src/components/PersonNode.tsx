@@ -1,10 +1,20 @@
 import { Handle, Position, type NodeProps, type Node as FlowNode } from '@xyflow/react'
 import { Fragment, useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react'
 
-import { type PhotoTransform, PERSON_CARD_H, PERSON_CARD_W, PERSON_MAIN_OVAL_BOTTOM_INSET } from '../state/appState'
+import {
+  type PhotoTransform,
+  PERSON_CARD_H,
+  PERSON_CARD_NAME_BAR_BOTTOM,
+  PERSON_CARD_OVAL_HORIZONTAL_INSET,
+  PERSON_CARD_OVAL_TOP_INSET,
+  PERSON_CARD_STATUS_DOT_PX,
+  PERSON_CARD_W,
+  PERSON_MAIN_OVAL_BOTTOM_INSET,
+} from '../state/appState'
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { getBlob, ingestPersonPhotoBlob } from '../storage/indexedDb'
 import { getLibraryPhotoDragId, resolveLibraryPhotoIdFromDrop, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
+import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
 import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
@@ -185,13 +195,13 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       <div
         style={{
           position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
+          left: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+          right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+          top: PERSON_CARD_OVAL_TOP_INSET,
           bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
           borderRadius: '50%',
           overflow: 'hidden',
-          border: '3px solid #1b0f0f',
+          border: '8px solid #095e29',
           background: '#d5c2a7',
           pointerEvents: 'none',
           boxShadow: selected
@@ -200,13 +210,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           transition: 'box-shadow 140ms ease-out',
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            transform: `translate(${photoMainTransform.xPercent}%, ${photoMainTransform.yPercent}%)`,
-          }}
-        >
+        <div style={personPhotoFrameWrapperStyle(photoMainTransform)}>
           {mainUrl ? (
             <img
               src={mainUrl}
@@ -215,7 +219,6 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
                 width: '100%',
                 height: '100%',
                 objectFit: 'contain',
-                transform: `scale(${photoMainTransform.scale})`,
               }}
             />
           ) : (
@@ -241,28 +244,29 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       <div
         style={{
           position: 'absolute',
-          left: 10,
-          right: 10,
-          bottom: 28,
-          height: 28,
-          background: '#150b0b',
-          color: '#fefefe',
-          borderRadius: 6,
+          left: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+          right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
+          bottom: PERSON_CARD_NAME_BAR_BOTTOM,
+          height: 76,
+          background: '#095e29',
+          color: '#ffffff',
+          borderRadius: 10,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          fontSize: 15,
+          fontSize: 26,
           fontWeight: 800,
-          lineHeight: 1,
-          padding: '0 8px',
-          whiteSpace: 'nowrap',
-          textOverflow: 'ellipsis',
+          lineHeight: 1.1,
+          padding: '4px 8px',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
           overflow: 'hidden',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
           border: selected ? '2px solid color-mix(in srgb, var(--accent), white 20%)' : '2px solid transparent',
           pointerEvents: 'none',
           transition: 'border-color 140ms ease-out',
+          zIndex: 2,
         }}
       >
         {displayName}
@@ -273,24 +277,25 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         style={{
           position: 'absolute',
           left: '50%',
-          bottom: 2,
+          bottom: 0,
           transform: 'translateX(-50%)',
           display: 'flex',
           gap: 6,
           alignItems: 'center',
           justifyContent: 'center',
           pointerEvents: 'none',
+          zIndex: 1,
         }}
       >
         {timelineSpots.map((spot, idx) => (
           <div
             key={`${personId}-status-${idx}`}
             style={{
-              width: 20,
-              height: 20,
+              width: PERSON_CARD_STATUS_DOT_PX,
+              height: PERSON_CARD_STATUS_DOT_PX,
               boxSizing: 'border-box',
               borderRadius: '50%',
-              border: spot.color ? '1px solid #1b0f0f' : '1px solid transparent',
+              border: spot.color ? '2px solid #1b0f0f' : '2px solid transparent',
               boxShadow: selected && spot.color ? '0 0 0 2px color-mix(in srgb, var(--accent), white 20%)' : 'none',
               background: spot.color ? spot.color : 'transparent',
               transition: 'box-shadow 140ms ease-out',

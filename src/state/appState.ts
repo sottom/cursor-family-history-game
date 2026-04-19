@@ -82,13 +82,23 @@ export type AppState = {
 export type AlignMode = 'left' | 'cx' | 'right' | 'top' | 'cy' | 'bottom'
 export type DistributeMode = 'h' | 'v'
 
-// Placeholder card dimensions. These must match `PersonNode` in canvas for perfect alignment.
-export const PERSON_CARD_W = 220
-export const PERSON_CARD_H = 340
+// Card dimensions must match `PersonNode` on the canvas. Chosen so the portrait oval keeps the same
+// ellipse as the earlier 220×340 design with 18px side / 10px top insets (inner oval 184×226), while
+// the card edges sit flush with the oval and name strip (no outer gutter).
+export const PERSON_CARD_W = 184
+export const PERSON_CARD_H = 330
+/** Horizontal inset from card edges for the portrait oval and name bar (same width). */
+export const PERSON_CARD_OVAL_HORIZONTAL_INSET = 0
+/** Top inset above the portrait oval (0 = flush with top of the node). */
+export const PERSON_CARD_OVAL_TOP_INSET = 0
+/** Timeline status dots (px); must match name bar `bottom` so the row touches the bar without overlapping. */
+export const PERSON_CARD_STATUS_DOT_PX = 44
+/** Distance from card bottom to the name bar’s bottom edge — equals status row height. */
+export const PERSON_CARD_NAME_BAR_BOTTOM = PERSON_CARD_STATUS_DOT_PX
 /** Bottom inset for the main portrait oval on tree cards (name bar + status row). */
-export const PERSON_MAIN_OVAL_BOTTOM_INSET = 44
+export const PERSON_MAIN_OVAL_BOTTOM_INSET = 104
 /** Border-box aspect ratio of that oval — use for print preview so framing matches the adjuster. */
-export const PERSON_MAIN_OVAL_ASPECT_RATIO = `${PERSON_CARD_W} / ${PERSON_CARD_H - PERSON_MAIN_OVAL_BOTTOM_INSET}`
+export const PERSON_MAIN_OVAL_ASPECT_RATIO = `${PERSON_CARD_W - 2 * PERSON_CARD_OVAL_HORIZONTAL_INSET} / ${PERSON_CARD_H - PERSON_CARD_OVAL_TOP_INSET - PERSON_MAIN_OVAL_BOTTOM_INSET}`
 export const SPOUSE_GAP = 28
 export const SPOUSE_PAIR_SPACING_X = PERSON_CARD_W + SPOUSE_GAP
 
