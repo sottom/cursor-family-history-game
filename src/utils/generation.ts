@@ -32,11 +32,30 @@ export function computeGenerationByPersonId(
   for (const id of ids) gen[id] = 0
 
   const parentChild: [string, string][] = []
+  const spousePairs: [string, string][] = []
   for (const e of edges) {
     if (e.type === 'parent-child' && persons[e.source] && persons[e.target]) {
       parentChild.push([e.source, e.target])
     }
+    if (e.type === 'spouse' && persons[e.source] && persons[e.target]) {
+      spousePairs.push([e.source, e.target])
+    }
   }
+
+  const hasCurrentMarriage = (personId: string): boolean =>
+    (persons[personId]?.marriages ?? []).some((m) => !!m.isCurrent)
+
+  const isCurrentPair = (a: string, b: string): boolean => {
+    const aCurrentWithB = (persons[a]?.marriages ?? []).some((m) => m.spouseId === b && !!m.isCurrent)
+    const bCurrentWithA = (persons[b]?.marriages ?? []).some((m) => m.spouseId === a && !!m.isCurrent)
+    return aCurrentWithB || bCurrentWithA
+  }
+
+  const activeSpousePairs = spousePairs.filter(([a, b]) => {
+    if (isCurrentPair(a, b)) return true
+    // Legacy/default data may not mark current marriages; in that case keep spouse generation matched.
+    return !hasCurrentMarriage(a) && !hasCurrentMarriage(b)
+  })
 
   let changed = true
   let guard = 0
@@ -48,6 +67,17 @@ export function computeGenerationByPersonId(
       const next = Math.max(gen[parent] ?? 0, (gen[child] ?? 0) + 1)
       if (next !== gen[parent]) {
         gen[parent] = next
+        changed = true
+      }
+    }
+    for (const [a, b] of activeSpousePairs) {
+      const shared = Math.max(gen[a] ?? 0, gen[b] ?? 0)
+      if (shared !== gen[a]) {
+        gen[a] = shared
+        changed = true
+      }
+      if (shared !== gen[b]) {
+        gen[b] = shared
         changed = true
       }
     }
