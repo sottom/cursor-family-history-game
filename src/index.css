@@ -1231,9 +1231,21 @@ code {
   box-sizing: border-box;
   filter: drop-shadow(0 10px 24px rgba(35, 22, 12, 0.16));
   font-family: var(--heading);
+  /* Establish an inline-size container so `cqw` on the name text scales to this
+     card's width (not the viewport) — required for the ZIP export which renders
+     the card inside an off-screen staging node. */
+  container-type: inline-size;
   /* --ftCardAccent is the person's generation accent; set inline on the card root. */
   /* Portrait oval + name strip share one width so the banner never exceeds the oval. */
   --ft-print-oval-w: 56%;
+}
+
+/* Export mode: drop the UI-only drop-shadow (it extends past the card's
+   bounding box and would be clipped by rasterizer capture, leaving the card
+   itself looking cut off on the right/bottom). The template background already
+   carries its own framing artwork — the shadow isn't needed in the saved PNG. */
+.ftPrintCard--export {
+  filter: none;
 }
 
 .ftPrintCard__bg {
@@ -1359,16 +1371,21 @@ code {
   .ftPrintCard__nameText { font-size: 12px; }
 }
 
-/* Lifecycle area: one column by default, two columns when 2+ marriages */
+/* Lifecycle area: one column by default, two columns when 2+ marriages.
+   Insets keep the bubbles + text inside the blank card's black frame line
+   (which sits ~9% inside the silver border) with breathing room, so the
+   artwork border never overlaps the date content. All sub-sizing below
+   uses cqw so the export (rendered at a larger card width) scales the
+   bubbles, year text and gaps identically to the on-screen preview. */
 .ftPrintCard__lifecycle {
   position: absolute;
   top: 64%;
-  bottom: 4%;
-  left: 6%;
-  right: 6%;
+  bottom: 7%;
+  left: 11%;
+  right: 11%;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 5px 12px;
+  gap: 1.5cqw 3.5cqw;
   align-items: center;
   z-index: 3;
 }
@@ -1380,7 +1397,7 @@ code {
 .ftPrintCard__lifecycleCol {
   display: flex;
   flex-direction: column;
-  gap: 0.5px;
+  gap: 0.15cqw;
   justify-content: space-between;
   height: 100%;
   min-height: 0;
@@ -1392,34 +1409,34 @@ code {
    achieves this alignment. */
 .ftPrintCard__lifecycleCol--extra {
   justify-content: center;
-  gap: 14px;
+  gap: 4cqw;
   height: auto;
 }
 
 .ftPrintCard__row {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 1.5cqw;
   min-width: 0;
 }
 
 .ftPrintCard__rowBubble {
   flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
+  width: 11cqw;
+  height: 11cqw;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  border: 2px solid #1b0f0f;
+  border: 0.6cqw solid #1b0f0f;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .ftPrintCard__rowText {
   display: inline-flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 0.9cqw;
   min-width: 0;
   color: #1b0f0f;
   font-family: var(--heading);
@@ -1428,34 +1445,34 @@ code {
 
 .ftPrintCard__rowYear {
   font-weight: 700;
-  font-size: 23px;
+  font-size: 6cqw;
   letter-spacing: 0.01em;
   line-height: 1;
 }
 
 .ftPrintCard__rowMonthDay {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 3.8cqw;
   line-height: 1;
   color: #1b0f0f;
 }
 
-/* Compact spacing for the narrower aside layout beside the edit form */
+/* Fallback for browsers without container query units — preview-only sizing. */
+@supports not (width: 1cqw) {
+  .ftPrintCard__rowBubble { width: 48px; height: 48px; border-width: 2px; }
+  .ftPrintCard__row { gap: 5px; }
+  .ftPrintCard__rowText { gap: 3px; }
+  .ftPrintCard__rowYear { font-size: 23px; }
+  .ftPrintCard__rowMonthDay { font-size: 13px; }
+  .ftPrintCard__lifecycle { gap: 5px 12px; }
+  .ftPrintCard__lifecycleCol--extra { gap: 14px; }
+}
+
+/* Compact width for the aside layout beside the edit form. Because the inner
+   sizes above are declared in cqw, they auto-scale with this narrower card
+   width — no per-element overrides needed. */
 .ftPrintCardSection--aside .ftPrintCard {
   width: min(300px, 100%);
-}
-
-.ftPrintCardSection--aside .ftPrintCard__rowBubble {
-  width: 40px;
-  height: 40px;
-}
-
-.ftPrintCardSection--aside .ftPrintCard__rowYear {
-  font-size: 19px;
-}
-
-.ftPrintCardSection--aside .ftPrintCard__rowMonthDay {
-  font-size: 11px;
 }
 
 @media (max-width: 520px) {

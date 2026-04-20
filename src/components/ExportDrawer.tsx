@@ -372,6 +372,7 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
   const people = useMemo(() => Object.values(state.persons), [state.persons])
 
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
+  const [cardBgDataUrl, setCardBgDataUrl] = useState<string | undefined>(undefined)
 
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
   const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null)
@@ -391,6 +392,14 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
 
   const clearSelection = () => dispatch({ type: 'SET_SELECTED', payload: { personIds: [] } })
 
+  /**
+   * Per-person main + thumb photo URLs as data URLs, keyed so the card component
+   * can look them up by `photoMain.blobKey` / `photoThumb.blobKey`.
+   *
+   * For the thumbnail we prefer the high-resolution "original" blob (same source
+   * the modal preview uses) so the exported card matches the on-screen preview
+   * pixel-for-pixel — the saved thumb is smaller and rasterizes softer.
+   */
   const buildPhotoUrls = async () => {
     const next: Record<string, string> = {}
     for (const p of people) {
@@ -401,12 +410,27 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
         if (blob) next[main.blobKey] = await blobToDataUrl(blob)
       }
       if (thumb?.blobKey && !next[thumb.blobKey]) {
-        const blob = await getBlob(thumb.blobKey)
+        const original = await getBlob(getOriginalBlobKey(p.id))
+        const blob = original ?? (await getBlob(thumb.blobKey))
         if (blob) next[thumb.blobKey] = await blobToDataUrl(blob)
       }
     }
     setPhotoUrls(next)
     return next
+  }
+
+  /** Blank-card background loaded once and inlined as a data URL so the html→canvas
+   *  rasterizer captures it reliably across browsers (image tags with same-origin
+   *  URLs sometimes race or get cache-busted during rasterization). */
+  const loadCardBackgroundDataUrl = async (): Promise<string | undefined> => {
+    try {
+      const resp = await fetch('/cards/blankCard.png', { cache: 'force-cache' })
+      if (!resp.ok) return undefined
+      const blob = await resp.blob()
+      return await blobToDataUrl(blob)
+    } catch {
+      return undefined
+    }
   }
 
   const timestamp = () => new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)
@@ -488,28 +512,68 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
     try {
       clearSelection()
 
-      const dataUrls = await buildPhotoUrls()
-      flushSync(() => setPhotoUrls(dataUrls))
-      await new Promise((r) => setTimeout(r, 50))
+      const [dataUrls, bgDataUrl] = await Promise.all([buildPhotoUrls(), loadCardBackgroundDataUrl()])
+      // Flush both so the off-screen staging <PersonCardExport>s have their
+      // photos *and* the blank-card background embedded as data URLs before we
+      // ask dom-to-image to rasterize them.
+      flushSync(() => {
+        setPhotoUrls(dataUrls)
+        setCardBgDataUrl(bgDataUrl)
+      })
+      await waitForFrames(2)
+      // Make sure @font-face resources (serif heading font) are loaded so the
+      // name banner and year numbers render crisply into the PNG instead of a
+      // fallback sans.
+      if (typeof document !== 'undefined' && document.fonts) {
+        try {
+          await document.fonts.ready
+        } catch {
+          // non-fatal
+        }
+      }
 
       const zip = new JSZip()
 
-      // Cards — one PNG per person, rendered from the dedicated export card.
+      // Cards — one PNG per person. Renders the exact same KeepsakeCard used
+      // in the edit-modal preview, at a fixed pixel width and high pixelRatio
+      // so the saved image is indistinguishable from the on-screen preview.
       zip.folder('cards')
-      for (const person of people) {
+      setBusyLabel(`Rendering ${people.length} card${people.length === 1 ? '' : 's'}...`)
+      for (let i = 0; i < people.length; i += 1) {
+        const person = people[i]
+        setBusyLabel(`Rendering card ${i + 1} of ${people.length}...`)
         const wrapper = cardRefs.current[person.id]
         if (!wrapper) continue
 
-        await waitForAllImages(wrapper)
+        // Capture the .ftPrintCard element directly (not the outer wrapper) so
+        // dom-to-image sizes the canvas to the card's true bounds — no clipping
+        // of the template background's grey border on the right/bottom edges.
+        const cardEl = wrapper.querySelector('.ftPrintCard') as HTMLElement | null
+        if (!cardEl) continue
 
-        const pngDataUrl = await domtoimage.toPng(wrapper, {
-          pixelRatio: 5,
-          bgcolor: '#ffffff',
+        await waitForAllImages(cardEl)
+        await waitForFrames(1)
+
+        const rect = cardEl.getBoundingClientRect()
+        const captureW = Math.ceil(rect.width)
+        const captureH = Math.ceil(rect.height)
+
+        // pixelRatio 4 over a 738px CSS card ≈ 2950 × 3940 px output — crisp
+        // for 300 DPI printing at ~9.8" × ~13" without ballooning ZIP size.
+        // Matching the CSS width to the blank-card PNG's native width keeps
+        // the background artwork 1:1 (no pre-scaling blur) before the 4×
+        // rasterization oversample.
+        const pngDataUrl = await domtoimage.toPng(cardEl, {
+          pixelRatio: 4,
+          bgcolor: 'transparent',
           cacheBust: true,
+          width: captureW,
+          height: captureH,
         })
 
         const blob = await (await fetch(pngDataUrl)).blob()
-        zip.file(`cards/${person.id}.png`, blob)
+        const safeName = (person.shortName || person.fullName || person.id).replace(/[^a-zA-Z0-9_-]/g, '_')
+        zip.file(`cards/${safeName}_${person.id.slice(0, 8)}.png`, blob)
       }
 
       // tree.png — crisp, tightly-cropped capture of just the node graph.
@@ -794,10 +858,13 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
           ) : null}
         </div>
 
-        {/* Hidden export cards staging area — used only by the ZIP path. */}
+        {/* Hidden export cards staging area — used only by the ZIP path.
+            Each wrapper has an explicit pixel size so `container-type: inline-size`
+            on the card resolves `cqw` units correctly (otherwise the name text
+            would fall back to the viewport-based font-size). */}
         <div
           style={{
-            position: 'absolute',
+            position: 'fixed',
             left: '-100000px',
             top: 0,
             width: 'max-content',
@@ -805,24 +872,25 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
             overflow: 'visible',
             pointerEvents: 'none',
           }}
+          aria-hidden
         >
-          <div>
-            {people.map((person) => (
-              <div
-                key={person.id}
-                ref={(el) => {
-                  cardRefs.current[person.id] = el
-                }}
-              >
-                <PersonCardExport
-                  personId={person.id}
-                  person={person}
-                  photoMainUrl={person.photoMain?.blobKey ? photoUrls[person.photoMain.blobKey] : null}
-                  photoThumbUrl={person.photoThumb?.blobKey ? photoUrls[person.photoThumb.blobKey] : null}
-                />
-              </div>
-            ))}
-          </div>
+          {people.map((person) => (
+            <div
+              key={person.id}
+              ref={(el) => {
+                cardRefs.current[person.id] = el
+              }}
+              style={{ width: 738, marginBottom: 16 }}
+            >
+              <PersonCardExport
+                personId={person.id}
+                person={person}
+                photoMainUrl={person.photoMain?.blobKey ? photoUrls[person.photoMain.blobKey] : null}
+                photoThumbUrl={person.photoThumb?.blobKey ? photoUrls[person.photoThumb.blobKey] : null}
+                backgroundUrl={cardBgDataUrl}
+              />
+            </div>
+          ))}
         </div>
       </div>
     </div>
