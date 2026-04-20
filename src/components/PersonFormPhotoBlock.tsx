@@ -320,7 +320,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const displayName = useMemo(
-    () => person?.shortName || person?.fullName || 'New Person',
+    () => person?.shortName || person?.fullName || '',
     [person?.fullName, person?.shortName],
   )
 

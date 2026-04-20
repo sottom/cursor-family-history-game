@@ -109,7 +109,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
     [dispatch, person, personId, state.photoLibrary],
   )
   const displayName = useMemo(
-    () => person?.shortName || person?.fullName || 'New Person',
+    () => person?.shortName || person?.fullName || '',
     [person?.fullName, person?.shortName],
   )
 

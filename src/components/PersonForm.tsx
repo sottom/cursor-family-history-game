@@ -108,7 +108,7 @@ export default function PersonForm() {
             <div className="ftPersonEditGrid__fields ftPersonFormLayout__fields" style={{ display: 'grid', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: 10 }}>
             <label style={{ display: 'grid', gap: 6 }}>
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>Full name</span>
+              <span style={{ fontSize: 12, color: 'var(--text)' }}>Full name (on Card)</span>
               <input
                 value={person.fullName}
                 onChange={(e) => dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { fullName: e.target.value } } })}
@@ -116,7 +116,7 @@ export default function PersonForm() {
               />
             </label>
             <label style={{ display: 'grid', gap: 6 }}>
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>Short name</span>
+              <span style={{ fontSize: 12, color: 'var(--text)' }}>Short name (on Tree)</span>
               <input
                 value={person.shortName}
                 onChange={(e) =>
@@ -151,15 +151,6 @@ export default function PersonForm() {
               }
             />
           </div>
-
-          <label style={{ display: 'grid', gap: 6 }}>
-            <span style={{ fontSize: 12, color: 'var(--text)' }}>Notes</span>
-            <textarea
-              value={person.notes ?? ''}
-              onChange={(e) => dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { notes: e.target.value } } })}
-              style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)', minHeight: 90 }}
-            />
-          </label>
 
           {person.marriages?.length ? (
             <div style={{ display: 'grid', gap: 8 }}>

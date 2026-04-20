@@ -98,7 +98,7 @@ export default function PersonCardExport(props: {
         }}
       >
         <div style={{ fontWeight: 900, color: '#08060d', fontSize: 14, lineHeight: 1.05 }}>
-          {person.fullName || person.shortName || 'New Person'}
+          {person.fullName || person.shortName || ''}
         </div>
 
         {person.shortName && person.shortName !== person.fullName ? (
