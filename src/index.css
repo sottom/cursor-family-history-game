@@ -1233,6 +1233,11 @@ code {
   display: none !important;
 }
 
+.ftCanvas--exporting-poster .react-flow__edges,
+.ftCanvas--exporting-poster .react-flow__edge {
+  display: none !important;
+}
+
 .ftCanvas--exporting,
 .ftCanvas--exporting .ftReactFlow,
 .ftCanvas--exporting .react-flow,

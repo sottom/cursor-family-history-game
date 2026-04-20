@@ -9,7 +9,8 @@ import { computeAllGroupings, computeEqualSpreadGrouping } from '../utils/groupi
 import { getBlob, getOriginalBlobKey } from '../storage/indexedDb'
 import { getReactFlowInstance } from '../utils/reactFlowBridge'
 import PersonCardExport from './PersonCardExport'
-import type { Person } from '../state/appState'
+import { lineageSlotIndex } from '../utils/parentHandles'
+import type { Edge as AppEdge, NodePosition, Person } from '../state/appState'
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -165,6 +166,8 @@ type CaptureOptions = {
   padding: number
   /** Background fill. Use 'transparent' for posters composed over a template. */
   bgcolor: string
+  /** If true, applies an additional CSS class to hide edges during rasterization. */
+  isPoster?: boolean
 }
 
 /**
@@ -201,6 +204,7 @@ async function captureTreeImage(options: CaptureOptions): Promise<Blob | null> {
 
   try {
     canvasEl.classList.add('ftCanvas--exporting')
+    if (options.isPoster) canvasEl.classList.add('ftCanvas--exporting-poster')
 
     rfEl.style.width = `${boxW}px`
     rfEl.style.height = `${boxH}px`
@@ -235,6 +239,7 @@ async function captureTreeImage(options: CaptureOptions): Promise<Blob | null> {
     rfEl.style.overflow = savedRfStyle.overflow
     rfEl.style.background = savedRfStyle.background
     canvasEl.classList.remove('ftCanvas--exporting')
+    if (options.isPoster) canvasEl.classList.remove('ftCanvas--exporting-poster')
     rf.setViewport?.(savedViewport, { duration: 0 })
   }
 }
@@ -270,6 +275,11 @@ function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
 async function composePosterBlob(params: {
   treeBlob: Blob
   backgroundBlob: Blob
+  edges: AppEdge[]
+  nodePositions: Record<string, NodePosition>
+  treeBounds: TreeBounds
+  treePadding: number
+  treePixelRatio: number
   /** Fraction of the background's shorter side to leave as margin around the tree. */
   marginFraction: number
   mime: 'image/png' | 'image/jpeg'
@@ -297,6 +307,53 @@ async function composePosterBlob(params: {
   const drawH = tree.naturalHeight * scale
   const drawX = (canvas.width - drawW) / 2
   const drawY = (canvas.height - drawH) / 2
+
+  const boxW = Math.ceil(params.treeBounds.maxX - params.treeBounds.minX) + params.treePadding * 2
+  const boxH = Math.ceil(params.treeBounds.maxY - params.treeBounds.minY) + params.treePadding * 2
+
+  // Draw only parent-child connectors (never marriage connectors) so poster exports
+  // always include ancestry lines even when transparent tree rasterization drops edges.
+  for (const edge of params.edges) {
+    if (edge.type !== 'parent-child') continue
+    const parentPos = params.nodePositions[edge.source]
+    const childPos = params.nodePositions[edge.target]
+    if (!parentPos || !childPos) continue
+
+    const slot = lineageSlotIndex(edge, params.edges, params.nodePositions)
+    const handlePercent = slot === 0 ? 0.25 : slot === 2 ? 0.75 : 0.5
+
+    const parentFlowX = parentPos.x + PERSON_CARD_W * handlePercent
+    const parentFlowY = parentPos.y + PERSON_CARD_H
+    const childFlowX = childPos.x + PERSON_CARD_W / 2
+    const childFlowY = childPos.y
+
+    const toPosterX = (flowX: number) => {
+      const boxX = flowX - params.treeBounds.minX + params.treePadding
+      return drawX + (boxX / boxW) * drawW
+    }
+    const toPosterY = (flowY: number) => {
+      const boxY = flowY - params.treeBounds.minY + params.treePadding
+      return drawY + (boxY / boxH) * drawH
+    }
+
+    const x1 = toPosterX(parentFlowX)
+    const y1 = toPosterY(parentFlowY)
+    const x2 = toPosterX(childFlowX)
+    const y2 = toPosterY(childFlowY)
+    const midY = y1 + (y2 - y1) * 0.5
+
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x1, midY)
+    ctx.lineTo(x2, midY)
+    ctx.lineTo(x2, y2)
+    ctx.strokeStyle = '#6f5b49'
+    ctx.lineWidth = Math.max(2, Math.round(3 * scale))
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.stroke()
+  }
+
   ctx.drawImage(tree, drawX, drawY, drawW, drawH)
 
   return new Promise<Blob | null>((resolve) => {
@@ -387,11 +444,15 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
       await waitForFrames(2)
 
       setBusyLabel('Rendering tree at high resolution...')
+      const rf = getReactFlowInstance()
+      const treeBounds = rf ? computeTreeBounds(rf) : null
+      if (!treeBounds) return
       const treeBlob = await captureTreeImage({
         pixelRatio,
         padding: 40,
         // Transparent so the user's template background shows through around cards.
         bgcolor: 'transparent',
+        isPoster: true,
       })
       if (!treeBlob) return
 
@@ -400,6 +461,11 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
       const posterBlob = await composePosterBlob({
         treeBlob,
         backgroundBlob: backgroundFile,
+        edges: state.edges,
+        nodePositions: state.nodePositions,
+        treeBounds,
+        treePadding: 40,
+        treePixelRatio: pixelRatio,
         marginFraction: Math.max(0, Math.min(30, marginPercent)) / 100,
         mime,
         quality: 0.95,
@@ -458,15 +524,23 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
       // Optional composite poster using the selected background image.
       if (backgroundFile) {
         setBusyLabel('Compositing poster...')
+        const rf = getReactFlowInstance()
+        const treeBounds = rf ? computeTreeBounds(rf) : null
         const transparentTree = await captureTreeImage({
           pixelRatio,
           padding: 40,
           bgcolor: 'transparent',
+          isPoster: true,
         })
-        if (transparentTree) {
+        if (transparentTree && treeBounds) {
           const poster = await composePosterBlob({
             treeBlob: transparentTree,
             backgroundBlob: backgroundFile,
+            edges: state.edges,
+            nodePositions: state.nodePositions,
+            treeBounds,
+            treePadding: 40,
+            treePixelRatio: pixelRatio,
             marginFraction: Math.max(0, Math.min(30, marginPercent)) / 100,
             mime: outputFormat === 'jpeg' ? 'image/jpeg' : 'image/png',
             quality: 0.95,
