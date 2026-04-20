@@ -14,10 +14,11 @@ import {
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { getBlob, ingestPersonPhotoBlob } from '../storage/indexedDb'
 import { getLibraryPhotoDragId, resolveLibraryPhotoIdFromDrop, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
+import { getGenerationAccentColor } from '../utils/generation'
 import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
 import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 
-type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
+type PersonNodeData = { personId: string; isNewlyAdded?: boolean; generationIndex?: number }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
 
 /** Loads portrait bytes; `contentRevision` busts cache when IndexedDB is overwritten under the same blob key. */
@@ -48,7 +49,8 @@ function useBlobUrl(blobKey: string | undefined, contentRevision: number | undef
 }
 
 export default function PersonNode(props: NodeProps<PersonNodeType>) {
-  const { personId, isNewlyAdded } = props.data
+  const { personId, isNewlyAdded, generationIndex = 0 } = props.data
+  const generationAccent = useMemo(() => getGenerationAccentColor(generationIndex), [generationIndex])
   const state = useAppState()
   const dispatch = useAppDispatch()
   const person = state.persons[personId]
@@ -201,7 +203,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
           borderRadius: '50%',
           overflow: 'hidden',
-          border: '8px solid #095e29',
+          border: `8px solid ${generationAccent}`,
           background: '#d5c2a7',
           pointerEvents: 'none',
           boxShadow: selected
@@ -248,7 +250,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
           bottom: PERSON_CARD_NAME_BAR_BOTTOM,
           height: 76,
-          background: '#095e29',
+          background: generationAccent,
           color: '#ffffff',
           borderRadius: 10,
           display: 'flex',

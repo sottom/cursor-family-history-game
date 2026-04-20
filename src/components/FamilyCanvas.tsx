@@ -29,8 +29,9 @@ import { setReactFlowInstance, getReactFlowInstance } from '../utils/reactFlowBr
 import { createNewPerson } from '../state/appState'
 import { childTargetHandleId, parentSourceHandleId } from '../utils/parentHandles'
 import { slotFromSpouseRightHandle, spouseSourceHandleId, spouseTargetHandleId } from '../utils/spouseHandles'
+import { computeGenerationByPersonId } from '../utils/generation'
 
-type PersonNodeData = { personId: string; isNewlyAdded?: boolean }
+type PersonNodeData = { personId: string; isNewlyAdded?: boolean; generationIndex: number }
 type PersonNodeType = Node<PersonNodeData, 'person'>
 
 /** Screen pixels — converted to flow units using zoom for consistent feel while panning/zooming */
@@ -89,16 +90,25 @@ export default function FamilyCanvas() {
 
   const nodeTypes = useMemo(() => ({ person: PersonNode }), [])
 
+  const generationByPersonId = useMemo(
+    () => computeGenerationByPersonId(state.persons, state.edges),
+    [state.persons, state.edges],
+  )
+
   const derivedNodes = useMemo<PersonNodeType[]>(
     () =>
       Object.values(state.persons).map((person) => ({
         id: person.id,
         type: 'person' as const,
         position: state.nodePositions[person.id] ?? { x: 0, y: 0 },
-        data: { personId: person.id, isNewlyAdded: !!newlyAddedNodeIds[person.id] },
+        data: {
+          personId: person.id,
+          isNewlyAdded: !!newlyAddedNodeIds[person.id],
+          generationIndex: generationByPersonId[person.id] ?? 0,
+        },
         draggable: true,
       })),
-    [newlyAddedNodeIds, state.persons, state.nodePositions],
+    [generationByPersonId, newlyAddedNodeIds, state.persons, state.nodePositions],
   )
 
   const [nodes, setNodes] = useState<PersonNodeType[]>(derivedNodes)

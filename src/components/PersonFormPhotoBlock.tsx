@@ -14,6 +14,7 @@ import {
   type PhotoTransform,
 } from '../state/appState'
 import { getBlob, getOriginalBlobKey, ingestPersonPhotoBlob } from '../storage/indexedDb'
+import { computeGenerationByPersonId, getGenerationAccentColor } from '../utils/generation'
 import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
 import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 
@@ -37,8 +38,8 @@ const CANVAS_CARD_SHELL: CSSProperties = {
   boxSizing: 'border-box',
 }
 
-/** Oval photo region — same box model as canvas (`left/right/top/bottom` + `borderRadius: 50%`). */
-const CANVAS_OVAL_SHELL: CSSProperties = {
+/** Oval photo region — same box model as canvas (`left/right/top/bottom` + `borderRadius: 50%`). Border color comes from generation accent. */
+const CANVAS_OVAL_SHELL_BASE: CSSProperties = {
   position: 'absolute',
   left: PERSON_CARD_OVAL_HORIZONTAL_INSET,
   right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
@@ -46,19 +47,17 @@ const CANVAS_OVAL_SHELL: CSSProperties = {
   bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
   borderRadius: '50%',
   overflow: 'hidden',
-  border: '8px solid #095e29',
   background: '#d5c2a7',
   boxShadow: 'var(--card-shadow)',
   touchAction: 'none',
 }
 
-const CANVAS_NAME_BAR: CSSProperties = {
+const CANVAS_NAME_BAR_BASE: CSSProperties = {
   position: 'absolute',
   left: PERSON_CARD_OVAL_HORIZONTAL_INSET,
   right: PERSON_CARD_OVAL_HORIZONTAL_INSET,
   bottom: PERSON_CARD_NAME_BAR_BOTTOM,
   height: 76,
-  background: '#095e29',
   color: '#ffffff',
   borderRadius: 10,
   display: 'flex',
@@ -330,6 +329,20 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
   const startYear = useMemo(() => getTimelineStartYear(state), [state.persons])
   const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
 
+  const generationAccent = useMemo(() => {
+    const idx = computeGenerationByPersonId(state.persons, state.edges)[personId] ?? 0
+    return getGenerationAccentColor(idx)
+  }, [personId, state.persons, state.edges])
+
+  const ovalShellStyle = useMemo(
+    (): CSSProperties => ({ ...CANVAS_OVAL_SHELL_BASE, border: `8px solid ${generationAccent}` }),
+    [generationAccent],
+  )
+  const nameBarStyle = useMemo(
+    (): CSSProperties => ({ ...CANVAS_NAME_BAR_BASE, background: generationAccent }),
+    [generationAccent],
+  )
+
   if (!person) return null
 
   const frameLabel =
@@ -371,7 +384,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
           <div className="ftPersonFormPhoto__frame ftPersonFormPhoto__frame--node" style={CANVAS_CARD_SHELL}>
             <div
               ref={frameRef}
-              style={CANVAS_OVAL_SHELL}
+              style={ovalShellStyle}
               onPointerDown={(e) => {
                 if (!photoRef) return
                 e.preventDefault()
@@ -418,7 +431,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                 )}
               </div>
             </div>
-            <div style={CANVAS_NAME_BAR} aria-hidden>
+            <div style={nameBarStyle} aria-hidden>
               {displayName}
             </div>
             <div style={CANVAS_STATUS_ROW} aria-hidden>
