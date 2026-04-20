@@ -7,6 +7,7 @@ import {
   PERSON_CARD_NAME_BAR_BOTTOM,
   PERSON_CARD_OVAL_HORIZONTAL_INSET,
   PERSON_CARD_OVAL_TOP_INSET,
+  PERSON_CARD_STATUS_DOT_GAP_PX,
   PERSON_CARD_STATUS_DOT_PX,
   PERSON_CARD_W,
   PERSON_MAIN_OVAL_BOTTOM_INSET,
@@ -435,7 +436,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
             <div
               style={{
                 ...CANVAS_STATUS_ROW,
-                height: PERSON_CARD_STATUS_DOT_PX + maxTimelineRow * (PERSON_CARD_STATUS_DOT_PX + 6),
+                height: PERSON_CARD_STATUS_DOT_PX + maxTimelineRow * (PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX),
               }}
               aria-hidden
             >
@@ -447,15 +448,15 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
                     position: 'absolute',
                     left:
                       spot.lane === 'left'
-                        ? `calc(50% - ${PERSON_CARD_STATUS_DOT_PX + 6}px)`
+                        ? `calc(50% - ${PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX}px)`
                         : spot.lane === 'center'
                           ? '50%'
                           : spot.lane === 'right'
-                            ? `calc(50% + ${PERSON_CARD_STATUS_DOT_PX + 6}px)`
+                            ? `calc(50% + ${PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX}px)`
                             : spot.lane === 'center-left'
-                              ? `calc(50% - ${(PERSON_CARD_STATUS_DOT_PX + 6) / 2}px)`
-                              : `calc(50% + ${(PERSON_CARD_STATUS_DOT_PX + 6) / 2}px)`,
-                    bottom: -spot.row * (PERSON_CARD_STATUS_DOT_PX + 6),
+                              ? `calc(50% - ${(PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX) / 2}px)`
+                              : `calc(50% + ${(PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX) / 2}px)`,
+                    bottom: -spot.row * (PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX),
                     transform: 'translateX(-50%)',
                     border: spot.color ? '2px solid #1b0f0f' : '2px solid transparent',
                     background: spot.color ? spot.color : 'transparent',

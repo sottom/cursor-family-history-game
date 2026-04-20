@@ -93,6 +93,8 @@ export const PERSON_CARD_OVAL_HORIZONTAL_INSET = 0
 export const PERSON_CARD_OVAL_TOP_INSET = 0
 /** Timeline status dots (px); must match name bar `bottom` so the row touches the bar without overlapping. */
 export const PERSON_CARD_STATUS_DOT_PX = 44
+/** Vertical gap between stacked timeline status-dot rows. */
+export const PERSON_CARD_STATUS_DOT_GAP_PX = 2
 /** Distance from card bottom to the name bar’s bottom edge — equals status row height. */
 export const PERSON_CARD_NAME_BAR_BOTTOM = PERSON_CARD_STATUS_DOT_PX
 /** Bottom inset for the main portrait oval on tree cards (name bar + status row). */
