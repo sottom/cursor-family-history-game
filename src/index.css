@@ -1254,3 +1254,82 @@ code {
   transition: none !important;
 }
 
+/* Undo / redo control pair in the topbar. */
+.ftUndoRedo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--bg), transparent 0%);
+}
+
+.ftUndoRedo__btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-h);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ftUndoRedo__btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-h), transparent 92%);
+  box-shadow: none;
+}
+
+.ftUndoRedo__btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ftUndoRedo__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.ftUndoRedo__btn:focus-visible {
+  outline: 2px solid var(--accent, #4c8bf5);
+  outline-offset: 1px;
+}
+
+/* Toast is positioned relative to the app; the inner chip is the visible element so that the
+   live region exists even when empty (screen readers still pick it up). */
+.ftUndoRedoToast {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  pointer-events: none;
+}
+
+.ftUndoRedoToast__chip {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.86);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  animation: ftUndoRedoToastIn 140ms ease-out;
+}
+
+@keyframes ftUndoRedoToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

@@ -19,7 +19,7 @@ import {
 import '@xyflow/react/dist/style.css'
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import type { Edge as AppEdge } from '../state/appState'
+import type { AppAction, Edge as AppEdge } from '../state/appState'
 import type { NodePosition } from '../state/appState'
 import PersonNode from './PersonNode'
 import AlignToolbar from './AlignToolbar'
@@ -136,9 +136,17 @@ export default function FamilyCanvas() {
         const tag = (event.target as HTMLElement | null)?.tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
         event.preventDefault()
-        for (const personId of state.selectedPersonIds) {
-          dispatch({ type: 'REMOVE_PERSON', payload: { personId } })
-        }
+        const ids = state.selectedPersonIds
+        dispatch({
+          type: '__BATCH',
+          payload: {
+            label: ids.length > 1 ? `remove ${ids.length} people` : 'remove person',
+            actions: ids.map((personId) => ({
+              type: 'REMOVE_PERSON',
+              payload: { personId },
+            })),
+          },
+        })
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -177,24 +185,27 @@ export default function FamilyCanvas() {
         const marriage = { dateISO: undefined as string | undefined, location: undefined as string | undefined }
         const edgeId = crypto.randomUUID()
         const spouseHandleSlot = slotFromSpouseRightHandle(sh)
-        dispatch({
-          type: 'ADD_EDGE',
-          payload: {
-            edge: {
-              id: edgeId,
-              source: a,
-              target: b,
-              type: 'spouse',
-              marriage,
-              ...(spouseHandleSlot !== undefined ? { spouseHandleSlot } : {}),
-            },
-          },
-        })
-
         const pa = state.persons[a]
         const pb = state.persons[b]
+        // Bundle the edge + both marriage-list updates so a single Undo reverses the whole
+        // connection rather than three separate steps.
+        const batchActions: AppAction[] = [
+          {
+            type: 'ADD_EDGE',
+            payload: {
+              edge: {
+                id: edgeId,
+                source: a,
+                target: b,
+                type: 'spouse',
+                marriage,
+                ...(spouseHandleSlot !== undefined ? { spouseHandleSlot } : {}),
+              },
+            },
+          },
+        ]
         if (pa) {
-          dispatch({
+          batchActions.push({
             type: 'UPDATE_PERSON',
             payload: {
               personId: a,
@@ -203,7 +214,7 @@ export default function FamilyCanvas() {
           })
         }
         if (pb) {
-          dispatch({
+          batchActions.push({
             type: 'UPDATE_PERSON',
             payload: {
               personId: b,
@@ -211,6 +222,7 @@ export default function FamilyCanvas() {
             },
           })
         }
+        dispatch({ type: '__BATCH', payload: { actions: batchActions, label: 'add marriage' } })
         return
       }
 
@@ -285,8 +297,17 @@ export default function FamilyCanvas() {
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       const removals = changes.filter((c) => c.type === 'remove')
-      for (const c of removals) {
-        if (c.type === 'remove') dispatch({ type: 'REMOVE_EDGE', payload: { edgeId: c.id } })
+      if (removals.length > 0) {
+        dispatch({
+          type: '__BATCH',
+          payload: {
+            label:
+              removals.length > 1 ? `remove ${removals.length} connections` : 'remove connection',
+            actions: removals
+              .filter((c) => c.type === 'remove')
+              .map((c) => ({ type: 'REMOVE_EDGE', payload: { edgeId: c.id } })),
+          },
+        })
       }
       const rest = changes.filter((c) => c.type !== 'remove')
       if (rest.length > 0) {
@@ -330,8 +351,16 @@ export default function FamilyCanvas() {
     }
 
     const p = createNewPerson({ shortName: 'Person', fullName: '' })
-    dispatch({ type: 'ADD_PERSON', payload: { person: p, position: { x, y } } })
-    dispatch({ type: 'SET_SELECTED', payload: { personIds: [p.id] } })
+    dispatch({
+      type: '__BATCH',
+      payload: {
+        label: 'add person',
+        actions: [
+          { type: 'ADD_PERSON', payload: { person: p, position: { x, y } } },
+          { type: 'SET_SELECTED', payload: { personIds: [p.id] } },
+        ],
+      },
+    })
 
     setNewlyAddedNodeIds((prev) => ({ ...prev, [p.id]: true }))
     const timeoutId = window.setTimeout(() => {
@@ -490,7 +519,18 @@ export default function FamilyCanvas() {
         onInit={(instance) => setReactFlowInstance(instance)}
         onNodesChange={(changes: NodeChange[]) => {
           const removals = changes.filter((c) => c.type === 'remove')
-          for (const c of removals) dispatch({ type: 'REMOVE_PERSON', payload: { personId: c.id } })
+          if (removals.length > 0) {
+            dispatch({
+              type: '__BATCH',
+              payload: {
+                label: removals.length > 1 ? `remove ${removals.length} people` : 'remove person',
+                actions: removals.map((c) => ({
+                  type: 'REMOVE_PERSON',
+                  payload: { personId: c.id },
+                })),
+              },
+            })
+          }
           const rest = changes
             .filter((c) => c.type !== 'remove')
             .map((c) => {

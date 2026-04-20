@@ -169,6 +169,14 @@ export type AppAction =
       payload: { entries: PhotoLibraryEntry[] }
     }
   | { type: 'CLEAR_PHOTO_LIBRARY' }
+  /**
+   * Dispatches several actions atomically as a single undoable unit. Used for flows that must
+   * move together (e.g. creating a spouse edge and updating both people's marriage lists).
+   */
+  | {
+      type: '__BATCH'
+      payload: { actions: AppAction[]; label?: string }
+    }
 
 export function createNewPerson(params?: Partial<Pick<Person, 'fullName' | 'shortName' | 'dob' | 'dod' | 'notes'>>): Person {
   const id = crypto.randomUUID()
@@ -481,6 +489,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'CLEAR_PHOTO_LIBRARY':
       return { ...state, photoLibrary: [] }
+    case '__BATCH': {
+      return action.payload.actions.reduce((acc, inner) => appReducer(acc, inner), state)
+    }
     default:
       return state
   }

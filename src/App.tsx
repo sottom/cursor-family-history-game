@@ -5,6 +5,7 @@ import PersonForm from './components/PersonForm'
 import ExportDrawer from './components/ExportDrawer'
 import OnboardingTourOverlay from './components/OnboardingTourOverlay'
 import SampleLoader from './components/SampleLoader'
+import UndoRedoControls from './components/UndoRedoControls'
 
 function AppShell() {
   const [exportOpen, setExportOpen] = useState(false)
@@ -33,6 +34,7 @@ function AppShell() {
           </div>
 
           <div className="ftTopbar__right">
+            <UndoRedoControls />
             <div className={`ftSaveStatus ftSaveStatus--${persistStatus}`}>
               {persistStatus === 'saving'
                 ? 'Saving...'
