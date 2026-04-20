@@ -264,22 +264,29 @@ code {
   .ftAside {
     display: none;
   }
+  .ftCanvas {
+    grid-template-columns: 1fr;
+  }
+  .ftCanvasSidebar {
+    grid-template-rows: auto auto;
+  }
+  .ftPhotoLibraryPanel--embedded {
+    min-height: 280px;
+  }
 }
 
 .ftCanvas {
   height: 100%;
   min-height: 0;
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
 }
 
-.ftCanvas__actions {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 20;
-  display: grid;
-  gap: 8px;
-  max-width: 360px;
+.ftCanvas__flow {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 
 .ftCanvas__help {
@@ -294,6 +301,7 @@ code {
 }
 
 .ftPhotoLibraryPanel {
+  box-sizing: border-box;
   position: absolute;
   top: 56px;
   right: 12px;
@@ -312,6 +320,56 @@ code {
   overflow: hidden;
   pointer-events: auto;
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.ftCanvasSidebar {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+}
+
+.ftCanvasSidebar__group {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg), transparent 8%);
+  box-shadow: var(--shadow);
+}
+
+.ftCanvasSidebar__title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-h);
+  letter-spacing: 0.02em;
+}
+
+.ftCanvasSidebar__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ftPhotoLibraryPanel--embedded {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  z-index: auto;
+  backdrop-filter: none;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+.ftPhotoLibraryPanel__actions > .ftBtn {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ftPhotoLibraryPanel--dropping {
@@ -1217,10 +1275,9 @@ code {
    the grid background so only the person cards + relationship edges end
    up in the captured image. Also neutralizes selection scale / animations
    that would otherwise make the output blurry or inconsistent. */
-.ftCanvas--exporting .ftCanvas__actions,
+.ftCanvas--exporting .ftCanvasSidebar,
 .ftCanvas--exporting .ftAlignToolbar,
 .ftCanvas--exporting .ftPhotoLibraryPanel,
-.ftCanvas--exporting > .ftBtn,
 .ftCanvas--exporting .react-flow__controls,
 .ftCanvas--exporting .react-flow__attribution,
 .ftCanvas--exporting .react-flow__panel,

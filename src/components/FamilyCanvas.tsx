@@ -470,33 +470,9 @@ export default function FamilyCanvas() {
 
   return (
     <div className="ftCanvas" ref={canvasRef}>
-      <AlignToolbar />
-      <PhotoLibraryPanel />
-      <button
-        className="ftBtn"
-        type="button"
-        style={{ position: 'absolute', top: 12, right: 12, zIndex: 20, padding: '10px 12px' }}
-        onClick={onAutoLayout}
-        disabled={Object.keys(state.persons).length < 2}
-      >
-        Auto Layout
-      </button>
-      <div className="ftCanvas__actions">
-        <button
-          className="ftBtn"
-          type="button"
-          onClick={addPersonInView}
-        >
-          Add Person
-        </button>
-        {state.selectedPersonIds.length < 2 && (
-          <div className="ftCanvas__help">
-            Drag from card edges to connect: top/bottom = parent–child, sides = marriage. Use the photo tray (right)
-            to import a folder, then drag a thumbnail onto a card. Click a line and press Delete to remove it.
-          </div>
-        )}
-      </div>
-      <ReactFlow
+      <div className="ftCanvas__flow">
+        <AlignToolbar />
+        <ReactFlow
         nodes={nodes}
         edges={rfEdges}
         nodeTypes={nodeTypes}
@@ -551,55 +527,81 @@ export default function FamilyCanvas() {
           if (ids.length === state.selectedPersonIds.length && ids.every((id, i) => id === state.selectedPersonIds[i])) return
           dispatch({ type: 'SET_SELECTED', payload: { personIds: ids } })
         }}
-      >
-        <Background gap={18} size={1} />
-        <ViewportPortal>
-          {(alignmentGuides.vertical != null || alignmentGuides.horizontal != null) && (
-            <svg
-              className="ftAlignmentGuides"
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: 1,
-                height: 1,
-                overflow: 'visible',
-                pointerEvents: 'none',
-                zIndex: 6,
-              }}
-              aria-hidden
+        >
+          <Background gap={18} size={1} />
+          <ViewportPortal>
+            {(alignmentGuides.vertical != null || alignmentGuides.horizontal != null) && (
+              <svg
+                className="ftAlignmentGuides"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: 1,
+                  height: 1,
+                  overflow: 'visible',
+                  pointerEvents: 'none',
+                  zIndex: 6,
+                }}
+                aria-hidden
+              >
+                {alignmentGuides.vertical != null && (
+                  <line
+                    x1={alignmentGuides.vertical.x}
+                    y1={alignmentGuides.vertical.y1}
+                    x2={alignmentGuides.vertical.x}
+                    y2={alignmentGuides.vertical.y2}
+                    stroke="#e01818"
+                    strokeOpacity={0.98}
+                    strokeWidth={1.5 / alignmentGuides.zoom}
+                    strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
+                    strokeLinecap="round"
+                  />
+                )}
+                {alignmentGuides.horizontal != null && (
+                  <line
+                    x1={alignmentGuides.horizontal.x1}
+                    y1={alignmentGuides.horizontal.y}
+                    x2={alignmentGuides.horizontal.x2}
+                    y2={alignmentGuides.horizontal.y}
+                    stroke="#e01818"
+                    strokeOpacity={0.98}
+                    strokeWidth={1.5 / alignmentGuides.zoom}
+                    strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
+                    strokeLinecap="round"
+                  />
+                )}
+              </svg>
+            )}
+          </ViewportPortal>
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
+      <aside className="ftCanvasSidebar" aria-label="Canvas tools">
+        <div className="ftCanvasSidebar__group">
+          <div className="ftCanvasSidebar__title">Quick actions</div>
+          <div className="ftCanvasSidebar__actions">
+            <button className="ftBtn ftBtn--primary" type="button" onClick={addPersonInView}>
+              Add Person
+            </button>
+            <button
+              className="ftBtn"
+              type="button"
+              onClick={onAutoLayout}
+              disabled={Object.keys(state.persons).length < 2}
             >
-              {alignmentGuides.vertical != null && (
-                <line
-                  x1={alignmentGuides.vertical.x}
-                  y1={alignmentGuides.vertical.y1}
-                  x2={alignmentGuides.vertical.x}
-                  y2={alignmentGuides.vertical.y2}
-                  stroke="#e01818"
-                  strokeOpacity={0.98}
-                  strokeWidth={1.5 / alignmentGuides.zoom}
-                  strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
-                  strokeLinecap="round"
-                />
-              )}
-              {alignmentGuides.horizontal != null && (
-                <line
-                  x1={alignmentGuides.horizontal.x1}
-                  y1={alignmentGuides.horizontal.y}
-                  x2={alignmentGuides.horizontal.x2}
-                  y2={alignmentGuides.horizontal.y}
-                  stroke="#e01818"
-                  strokeOpacity={0.98}
-                  strokeWidth={1.5 / alignmentGuides.zoom}
-                  strokeDasharray={`${4.5 / alignmentGuides.zoom} ${4.5 / alignmentGuides.zoom}`}
-                  strokeLinecap="round"
-                />
-              )}
-            </svg>
+              Auto Layout
+            </button>
+          </div>
+          {state.selectedPersonIds.length < 2 && (
+            <div className="ftCanvas__help">
+              Drag from card edges to connect: top/bottom = parent-child, sides = marriage. Import photos in the tray,
+              then drag a thumbnail onto a card. Click a line and press Delete to remove it.
+            </div>
           )}
-        </ViewportPortal>
-        <Controls showInteractive={false} />
-      </ReactFlow>
+        </div>
+        <PhotoLibraryPanel className="ftPhotoLibraryPanel--embedded" />
+      </aside>
     </div>
   )
 }

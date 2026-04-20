@@ -156,7 +156,11 @@ function LibraryThumb({ entry }: { entry: PhotoLibraryEntry }) {
   )
 }
 
-export default function PhotoLibraryPanel() {
+type PhotoLibraryPanelProps = {
+  className?: string
+}
+
+export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelProps) {
   const state = useAppState()
   const dispatch = useAppDispatch()
   const filePickRef = useRef<HTMLInputElement>(null)
@@ -268,7 +272,7 @@ export default function PhotoLibraryPanel() {
 
   return (
     <aside
-      className={`ftPhotoLibraryPanel${dropHover ? ' ftPhotoLibraryPanel--dropping' : ''}`}
+      className={`ftPhotoLibraryPanel${dropHover ? ' ftPhotoLibraryPanel--dropping' : ''}${className ? ` ${className}` : ''}`}
       aria-label="Imported photos"
       onDragOver={onPanelDragOver}
       onDragLeave={onPanelDragLeave}
