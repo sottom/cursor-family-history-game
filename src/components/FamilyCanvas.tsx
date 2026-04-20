@@ -306,6 +306,7 @@ export default function FamilyCanvas() {
           sourceHandle: parentSourceHandleId(edge, state.edges, state.nodePositions),
           targetHandle: childTargetHandleId(edge, state.edges, state.nodePositions),
           style: { stroke: hashColorFromId(edge.source), strokeWidth: 3 },
+          pathOptions: { borderRadius: 5, offset: 10 },
           data: { relationshipType: edge.type },
           interactionWidth: 28,
         }

@@ -442,6 +442,15 @@ code {
   padding: 12px 8px;
   border-radius: 10px;
   border: 1px dashed color-mix(in srgb, var(--border), transparent 20%);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.ftPhotoLibraryPanel__empty:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent), transparent 90%);
+  border-color: color-mix(in srgb, var(--accent), transparent 50%);
+  opacity: 0.95;
 }
 
 .ftPhotoLibraryPanel__grid {

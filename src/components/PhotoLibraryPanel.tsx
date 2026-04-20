@@ -164,6 +164,7 @@ export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelP
   const state = useAppState()
   const dispatch = useAppDispatch()
   const filePickRef = useRef<HTMLInputElement>(null)
+  const folderPickRef = useRef<HTMLInputElement>(null)
   const importHintTimerRef = useRef<number | null>(null)
   const [importing, setImporting] = useState(false)
   const [importHint, setImportHint] = useState<string | null>(null)
@@ -230,9 +231,10 @@ export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelP
   const onFilesChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const list = e.target.files
-      e.target.value = ''
       if (!list?.length) return
-      void importPayload(Array.from(list).map((f) => ({ file: f })))
+      const filesArray = Array.from(list)
+      e.target.value = ''
+      void importPayload(filesArray.map((f) => ({ file: f })))
     },
     [importPayload],
   )
@@ -292,7 +294,15 @@ export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelP
             onClick={() => filePickRef.current?.click()}
             disabled={importing}
           >
-            {importing ? 'Importing…' : 'Choose photos…'}
+            {importing ? 'Importing…' : 'Upload Files'}
+          </button>
+          <button
+            type="button"
+            className="ftBtn ftBtn--primary ftPhotoLibraryPanel__folderBtn"
+            onClick={() => folderPickRef.current?.click()}
+            disabled={importing}
+          >
+            {importing ? 'Importing…' : 'Upload Folder'}
           </button>
           {state.photoLibrary.length > 0 ? (
             <button type="button" className="ftBtn ftPhotoLibraryPanel__clearBtn" onClick={() => void clearLibrary()}>
@@ -303,6 +313,17 @@ export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelP
         <input
           ref={filePickRef}
           type="file"
+          accept="image/*,.heic,.heif,.webp"
+          className="ftPhotoLibraryPanel__hiddenInput"
+          multiple
+          onChange={onFilesChange}
+        />
+        <input
+          ref={folderPickRef}
+          type="file"
+          // @ts-expect-error webkitdirectory is non-standard but works across modern browsers
+          webkitdirectory=""
+          directory=""
           className="ftPhotoLibraryPanel__hiddenInput"
           multiple
           onChange={onFilesChange}
@@ -310,9 +331,14 @@ export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelP
       </div>
 
       {state.photoLibrary.length === 0 ? (
-        <div className="ftPhotoLibraryPanel__empty">
-          {importing ? 'Reading files…' : dropHover ? 'Release to import…' : 'Drag a folder or photos here, or use “Choose photos…”.'}
-        </div>
+        <button
+          type="button"
+          className="ftPhotoLibraryPanel__empty"
+          onClick={() => filePickRef.current?.click()}
+          disabled={importing}
+        >
+          {importing ? 'Reading files…' : dropHover ? 'Release to import…' : 'Drag a folder or photos here, or click to browse.'}
+        </button>
       ) : (
         <div className="ftPhotoLibraryPanel__grid">
           {state.photoLibrary.map((entry) => (

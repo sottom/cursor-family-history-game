@@ -48,8 +48,9 @@ export function layoutDagre(
   const g = new dagre.graphlib.Graph()
   g.setGraph({
     rankdir: 'TB',
-    nodesep: 10,
-    ranksep: 25,
+    // allows update line spacing combined with FamilyCanvas.tsx pathOptions: offset
+    nodesep: 24,
+    ranksep: 25 ,
     marginx: 40,
     marginy: 40,
   })

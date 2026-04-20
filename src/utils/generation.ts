@@ -42,21 +42,6 @@ export function computeGenerationByPersonId(
     }
   }
 
-  const hasCurrentMarriage = (personId: string): boolean =>
-    (persons[personId]?.marriages ?? []).some((m) => !!m.isCurrent)
-
-  const isCurrentPair = (a: string, b: string): boolean => {
-    const aCurrentWithB = (persons[a]?.marriages ?? []).some((m) => m.spouseId === b && !!m.isCurrent)
-    const bCurrentWithA = (persons[b]?.marriages ?? []).some((m) => m.spouseId === a && !!m.isCurrent)
-    return aCurrentWithB || bCurrentWithA
-  }
-
-  const activeSpousePairs = spousePairs.filter(([a, b]) => {
-    if (isCurrentPair(a, b)) return true
-    // Legacy/default data may not mark current marriages; in that case keep spouse generation matched.
-    return !hasCurrentMarriage(a) && !hasCurrentMarriage(b)
-  })
-
   let changed = true
   let guard = 0
   const maxPasses = Math.max(ids.length + 2, 8)
@@ -70,7 +55,7 @@ export function computeGenerationByPersonId(
         changed = true
       }
     }
-    for (const [a, b] of activeSpousePairs) {
+    for (const [a, b] of spousePairs) {
       const shared = Math.max(gen[a] ?? 0, gen[b] ?? 0)
       if (shared !== gen[a]) {
         gen[a] = shared
