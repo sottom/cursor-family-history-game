@@ -267,7 +267,7 @@ const THUMB_DOT_LANE_ORDER: Record<string, number> = {
   'center-right': 3,
   right: 4,
 }
-const THUMB_DOT_SIZE_PX = 16
+const THUMB_DOT_SIZE_PX = 13
 
 function ThumbTimelineDots({
   spots,
@@ -436,14 +436,14 @@ export default function PersonPrintCardPreview({
           <div className="ftPrintCard__thumbArea">
             <div
               className="ftPrintCard__thumb"
-              style={{ borderColor: generationAccent, background: generationAccent }}
+              style={{ background: generationAccent }}
             >
               <PhotoInFrame transform={thumbT} url={thumbUrl} emptyLabel="Thumb" borderRadius="50%" />
             </div>
             <ThumbTimelineDots spots={timelineSpots} />
           </div>
 
-          {/* Central oval portrait — same border color/thickness as tree node */}
+          {/* Central oval portrait — same accent color as tree; border width set in CSS for print scale */}
           <div className="ftPrintCard__ovalWrap">
             <div
               className="ftPrintCard__oval"
@@ -457,8 +457,10 @@ export default function PersonPrintCardPreview({
           </div>
 
           {/* Brown ribbon name banner */}
-          <div className="ftPrintCard__nameBanner" style={{ background: generationAccent }}>
-            <span className="ftPrintCard__nameText">{displayName}</span>
+          <div className="ftPrintCard__nameBannerWrap">
+            <div className="ftPrintCard__nameBanner" style={{ background: generationAccent }}>
+              <span className="ftPrintCard__nameText">{displayName}</span>
+            </div>
           </div>
 
           {/* Lifecycle rows — single column for 1 marriage, two columns for 2+ */}

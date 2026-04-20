@@ -328,6 +328,10 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
   const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
   const maxTimelineRow = useMemo(() => timelineSpots.reduce((m, s) => Math.max(m, s.row), 0), [timelineSpots])
 
+  /** Extra rows render with negative `bottom`, extending below the card — reserve space so hints/buttons aren’t covered. */
+  const timelineDotsOverflowBelowPx =
+    maxTimelineRow * (PERSON_CARD_STATUS_DOT_PX + PERSON_CARD_STATUS_DOT_GAP_PX)
+
   const generationAccent = useMemo(() => {
     const idx = computeGenerationByPersonId(state.persons, state.edges)[personId] ?? 0
     return getGenerationAccentColor(idx)
@@ -380,7 +384,13 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
 
       <div className="ftPersonFormPhoto__frameWrap">
         {framingVariant === 'photoMain' ? (
-          <div className="ftPersonFormPhoto__frame ftPersonFormPhoto__frame--node" style={CANVAS_CARD_SHELL}>
+          <div
+            className="ftPersonFormPhoto__frame ftPersonFormPhoto__frame--node"
+            style={{
+              ...CANVAS_CARD_SHELL,
+              ...(maxTimelineRow > 0 ? { marginBottom: timelineDotsOverflowBelowPx + 10 } : {}),
+            }}
+          >
             <div
               ref={frameRef}
               style={ovalShellStyle}

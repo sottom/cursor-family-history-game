@@ -939,9 +939,10 @@ code {
 
 .ftPersonFormPhoto__frameViewport--thumbCard {
   border-radius: 50%;
-  border: 2px solid #1e1a2e;
+  border: none;
   background: #d5c2a7;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  /* Replaced physical border with inset shadow to keep the inner content box identically sized to the preview */
+  box-shadow: inset 0 0 0 2px #1e1a2e, 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .ftPersonFormPhoto__imgShift {
@@ -1231,6 +1232,8 @@ code {
   filter: drop-shadow(0 10px 24px rgba(35, 22, 12, 0.16));
   font-family: var(--heading);
   /* --ftCardAccent is the person's generation accent; set inline on the card root. */
+  /* Portrait oval + name strip share one width so the banner never exceeds the oval. */
+  --ft-print-oval-w: 56%;
 }
 
 .ftPrintCard__bg {
@@ -1247,9 +1250,10 @@ code {
 /* Top-left thumbnail + tiny era-colored timeline dots */
 .ftPrintCard__thumbArea {
   position: absolute;
-  top: 5.5%;
-  left: 5.5%;
-  width: 17%;
+  top: 7.2%;
+  left: 11%;
+  /* Same proportion as before oval shrink (~15% card when oval was ~59% of card) */
+  width: calc(var(--ft-print-oval-w) * 15 / 59);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1261,9 +1265,9 @@ code {
   width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 1.5px solid var(--ftCardAccent, #5F2E15);
+  border: none;
   overflow: hidden;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 0 0 1.5px var(--ftCardAccent, #5F2E15), 0 2px 5px rgba(0, 0, 0, 0.2);
   box-sizing: border-box;
 }
 
@@ -1271,7 +1275,7 @@ code {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 1px;
+  gap: .5px;
   width: 100%;
 }
 
@@ -1281,7 +1285,7 @@ code {
   flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
-  gap: 1px;
+  gap: .5px;
   min-width: 0;
 }
 
@@ -1289,14 +1293,14 @@ code {
   flex-shrink: 0;
   border-radius: 50%;
   border-style: solid;
-  border-width: 1px;
+  border-width: .5px;
   box-sizing: border-box;
 }
 
 /* Central oval portrait — border color/thickness mirrors PersonNode canvas */
 .ftPrintCard__ovalWrap {
   position: absolute;
-  top: 10%;
+  top: 12%;
   left: 0;
   right: 0;
   display: flex;
@@ -1306,36 +1310,45 @@ code {
 
 .ftPrintCard__oval {
   box-sizing: border-box;
-  width: 62%;
+  width: var(--ft-print-oval-w);
   border-radius: 50%;
-  border: 7px solid var(--ftCardAccent, #5F2E15);
+  border: 5px solid var(--ftCardAccent, #5F2E15);
   overflow: hidden;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
   background: #d5c2a7;
 }
 
-/* Brown ribbon name banner — overlaps the bottom of the oval */
-.ftPrintCard__nameBanner {
+/* Name strip wrapper to hold the drop-shadow safely across browsers */
+.ftPrintCard__nameBannerWrap {
   position: absolute;
-  top: 58%;
-  left: 10%;
-  right: 10%;
-  padding: 2.4% 6% 2.6%;
-  background: var(--ftCardAccent, #5F2E15);
-  clip-path: polygon(4% 0%, 96% 0%, 100% 50%, 96% 100%, 4% 100%, 0% 50%);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+  top: 56%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--ft-print-oval-w);
+  max-width: var(--ft-print-oval-w);
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.22));
   z-index: 4;
+}
+
+/* Name strip: straight vertical sides, curved top & bottom */
+.ftPrintCard__nameBanner {
+  width: 100%;
+  padding: 6.5% 5% 7%;
+  background: var(--ftCardAccent, #5F2E15);
+  box-sizing: border-box;
+  /* An ellipse wider than the box clips the left and right into straight vertical lines */
+  clip-path: ellipse(58% 50% at 50% 50%);
   text-align: center;
 }
 
 .ftPrintCard__nameText {
   display: block;
   font-family: var(--heading);
-  font-size: clamp(12px, 4.2cqw, 18px);
+  font-size: clamp(10px, 3.2cqw, 14px);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: #fff;
-  line-height: 1.15;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1343,19 +1356,19 @@ code {
 
 /* Modern browsers that support container query units use cqw for crisp scaling; fall back to a safe px size. */
 @supports not (font-size: 1cqw) {
-  .ftPrintCard__nameText { font-size: 15px; }
+  .ftPrintCard__nameText { font-size: 12px; }
 }
 
 /* Lifecycle area: one column by default, two columns when 2+ marriages */
 .ftPrintCard__lifecycle {
   position: absolute;
-  top: 68%;
-  bottom: 5%;
-  left: 7%;
-  right: 7%;
+  top: 64%;
+  bottom: 4%;
+  left: 11%;
+  right: 11%;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px 14px;
+  gap: 5px 10px;
   align-items: center;
   z-index: 3;
 }
@@ -1367,7 +1380,7 @@ code {
 .ftPrintCard__lifecycleCol {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: .5px;
   justify-content: space-between;
   height: 100%;
   min-height: 0;
@@ -1386,20 +1399,20 @@ code {
 .ftPrintCard__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   min-width: 0;
 }
 
 .ftPrintCard__rowBubble {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  border: 2px solid #1b0f0f;
+  border: 1.5px solid #1b0f0f;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -1432,8 +1445,8 @@ code {
 }
 
 .ftPrintCardSection--aside .ftPrintCard__rowBubble {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
 }
 
 .ftPrintCardSection--aside .ftPrintCard__rowYear {
