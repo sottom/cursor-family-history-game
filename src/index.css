@@ -1342,12 +1342,21 @@ code {
   z-index: 4;
 }
 
-/* Name strip: straight vertical sides, curved top & bottom */
+/* Name strip: straight vertical sides, curved top & bottom.
+   Height is fixed in cqw so it tracks card width only — font-size changes do not
+   resize the green banner (text centers and clips inside). */
 .ftPrintCard__nameBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 6.5% 5% 7%;
+  height: 12.6cqw;
+  min-height: 12.6cqw;
+  max-height: 12.6cqw;
+  padding: 0 5%;
   background: var(--ftCardAccent, #5F2E15);
   box-sizing: border-box;
+  overflow: hidden;
   /* An ellipse wider than the box clips the left and right into straight vertical lines */
   clip-path: ellipse(58% 50% at 50% 50%);
   text-align: center;
@@ -1355,6 +1364,10 @@ code {
 
 .ftPrintCard__nameText {
   display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
   font-family: var(--heading);
   font-size: clamp(10px, 3.2cqw, 14px);
   font-weight: 700;
@@ -1390,15 +1403,45 @@ code {
   z-index: 3;
 }
 
+/* Two marriage columns: single-column cqw sizes are tuned for ~full lifecycle width.
+   With two columns, each tract is only ~half as wide — the same bubble + text still
+   measures ~70–80% of the *card* width, so rows overflow their grid cells and the
+   right column’s bubbles paint over the left column (gap/inset alone cannot fix that).
+   Widen the band slightly vs single-column, keep a modest gutter, and scale bubbles
+   + type together so rows fit; icons are %-sized inside the bubble. */
 .ftPrintCard__lifecycle--multi {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5cqw 4.5cqw;
+  left: 12%;
+  right: 12%;
+}
+
+.ftPrintCard__lifecycle--multi .ftPrintCard__rowBubble {
+  width: 11cqw;
+  height: 11cqw;
+  border-width: 0.55cqw;
+}
+
+.ftPrintCard__lifecycle--multi .ftPrintCard__row {
+  gap: 1.2cqw;
+}
+
+.ftPrintCard__lifecycle--multi .ftPrintCard__rowText {
+  gap: 0.75cqw;
+}
+
+.ftPrintCard__lifecycle--multi .ftPrintCard__rowYear {
+  font-size: 5.4cqw;
+}
+
+.ftPrintCard__lifecycle--multi .ftPrintCard__rowMonthDay {
+  font-size: 3.35cqw;
 }
 
 .ftPrintCard__lifecycleCol {
   display: flex;
   flex-direction: column;
-  gap: 0.15cqw;
-  justify-content: space-between;
+  justify-content: space-evenly;
   height: 100%;
   min-height: 0;
 }
@@ -1408,8 +1451,7 @@ code {
    on .ftPrintCard__lifecycle combined with the extra column's natural height
    achieves this alignment. */
 .ftPrintCard__lifecycleCol--extra {
-  justify-content: center;
-  gap: 4cqw;
+  gap: 2px;
   height: auto;
 }
 
@@ -1434,8 +1476,9 @@ code {
 }
 
 .ftPrintCard__rowText {
-  display: inline-flex;
-  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 0.9cqw;
   min-width: 0;
   color: #1b0f0f;
@@ -1465,7 +1508,20 @@ code {
   .ftPrintCard__rowYear { font-size: 23px; }
   .ftPrintCard__rowMonthDay { font-size: 13px; }
   .ftPrintCard__lifecycle { gap: 5px 12px; }
-  .ftPrintCard__lifecycleCol--extra { gap: 14px; }
+  .ftPrintCard__lifecycle--multi {
+    gap: 5px 14px;
+  }
+  .ftPrintCard__lifecycle--multi .ftPrintCard__rowBubble {
+    width: 36px;
+    height: 36px;
+    border-width: 2px;
+  }
+  .ftPrintCard__lifecycle--multi .ftPrintCard__rowYear {
+    font-size: 20px;
+  }
+  .ftPrintCard__lifecycle--multi .ftPrintCard__rowMonthDay {
+    font-size: 12px;
+  }
 }
 
 /* Compact width for the aside layout beside the edit form. Because the inner
