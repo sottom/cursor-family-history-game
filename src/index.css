@@ -1215,153 +1215,226 @@ code {
   overflow: hidden;
 }
 
+/* ---- Keepsake print card (Edit Details modal preview) ----------------
+   Layout is percent-based so every element scales with the card width
+   (from the narrow side-aside to the wider default layout). The brown
+   ribbon and oval/thumb border inherit from --ftCardAccent, which is set
+   inline from the person's generation-accent color so the preview always
+   matches their tree node. */
+
 .ftPrintCard {
-  width: min(300px, 100%);
-  max-width: 100%;
-  box-sizing: border-box;
-  filter: drop-shadow(0 10px 24px rgba(35, 22, 12, 0.14));
-}
-
-.ftPrintCard__plate {
-  border-radius: 14px;
-  overflow: hidden;
-  border: 2px solid #2a2438;
-  background: #c4b8dc;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-}
-
-.ftPrintCard__upper {
   position: relative;
-  /* Oval uses same aspect as tree card portrait; height scales with width (~269px at 200px wide). */
-  min-height: 292px;
-  padding: 12px 14px 0;
-  background: linear-gradient(180deg, #d4c8e8 0%, #c9badc 55%, #bfaecc 100%);
+  width: min(340px, 100%);
+  max-width: 100%;
+  aspect-ratio: 3 / 4;
+  box-sizing: border-box;
+  filter: drop-shadow(0 10px 24px rgba(35, 22, 12, 0.16));
+  font-family: var(--heading);
+  /* --ftCardAccent is the person's generation accent; set inline on the card root. */
+}
+
+.ftPrintCard__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+/* Top-left thumbnail + tiny era-colored timeline dots */
+.ftPrintCard__thumbArea {
+  position: absolute;
+  top: 5.5%;
+  left: 5.5%;
+  width: 17%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 3;
 }
 
 .ftPrintCard__thumb {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  width: 52px;
-  height: 52px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 50%;
-  border: 2px solid #1e1a2e;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  border: 1.5px solid var(--ftCardAccent, #5F2E15);
   overflow: hidden;
-  z-index: 2;
-  background: #d5c2a7;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
 }
 
+.ftPrintCard__thumbDots {
+  position: relative;
+  width: 100%;
+}
+
+.ftPrintCard__thumbDot {
+  position: absolute;
+  border-radius: 50%;
+  border-style: solid;
+  border-width: 1px;
+  box-sizing: border-box;
+  transform: translateX(-50%);
+}
+
+/* Central oval portrait — border color/thickness mirrors PersonNode canvas */
 .ftPrintCard__ovalWrap {
+  position: absolute;
+  top: 10%;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: center;
-  padding: 8px 12px 0;
+  z-index: 2;
 }
 
 .ftPrintCard__oval {
   box-sizing: border-box;
-  width: 200px;
-  max-width: 100%;
+  width: 62%;
   border-radius: 50%;
-  border: 3px solid #1a1530;
+  border: 7px solid var(--ftCardAccent, #5F2E15);
   overflow: hidden;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
   background: #d5c2a7;
 }
 
+/* Brown ribbon name banner — overlaps the bottom of the oval */
 .ftPrintCard__nameBanner {
-  position: relative;
-  z-index: 3;
-  margin: -36px auto 0;
-  max-width: 92%;
-  padding: 8px 14px 9px;
-  background: linear-gradient(180deg, #1f2a4a 0%, #151d38 100%);
-  border-radius: 4px;
-  clip-path: polygon(3% 0%, 97% 0%, 100% 50%, 97% 100%, 3% 100%, 0% 50%);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  position: absolute;
+  top: 58%;
+  left: 10%;
+  right: 10%;
+  padding: 2.4% 6% 2.6%;
+  background: var(--ftCardAccent, #5F2E15);
+  clip-path: polygon(4% 0%, 96% 0%, 100% 50%, 96% 100%, 4% 100%, 0% 50%);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+  z-index: 4;
+  text-align: center;
 }
 
 .ftPrintCard__nameText {
   display: block;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #faf8ff;
+  font-family: var(--heading);
+  font-size: clamp(12px, 4.2cqw, 18px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.ftPrintCard__lower {
-  padding: 14px 12px 16px;
-  background: linear-gradient(180deg, #efe6d8 0%, #e8dcc8 100%);
-  border-top: 1px solid rgba(42, 36, 56, 0.12);
+/* Modern browsers that support container query units use cqw for crisp scaling; fall back to a safe px size. */
+@supports not (font-size: 1cqw) {
+  .ftPrintCard__nameText { font-size: 15px; }
 }
 
-.ftPrintCard__badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-  align-items: stretch;
-}
-
-.ftPrintCard__badge {
-  flex: 1 1 128px;
-  min-width: 0;
-  max-width: 180px;
-  display: flex;
+/* Lifecycle area: one column by default, two columns when 2+ marriages */
+.ftPrintCard__lifecycle {
+  position: absolute;
+  top: 68%;
+  bottom: 5%;
+  left: 7%;
+  right: 7%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px 14px;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px 9px;
-  border-radius: 999px;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  z-index: 3;
 }
 
-.ftPrintCard__badge--birth {
-  background: linear-gradient(180deg, #3d8f5c 0%, #2d6b44 100%);
+.ftPrintCard__lifecycle--multi {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
-.ftPrintCard__badge--marriage {
-  background: linear-gradient(180deg, #d4783c 0%, #b85a24 100%);
-}
-
-.ftPrintCard__badgeIcon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.95;
-}
-
-.ftPrintCard__badgeText {
+.ftPrintCard__lifecycleCol {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 9px;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Secondary column centers vertically relative to the first marriage row
+   (which sits in the middle of the 3-row primary column). align-items: center
+   on .ftPrintCard__lifecycle combined with the extra column's natural height
+   achieves this alignment. */
+.ftPrintCard__lifecycleCol--extra {
+  justify-content: center;
+  gap: 14px;
+  height: auto;
+}
+
+.ftPrintCard__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
-.ftPrintCard__badgeYear {
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
+.ftPrintCard__rowBubble {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  border: 2px solid #1b0f0f;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.ftPrintCard__badgeSub {
+.ftPrintCard__rowText {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: #1b0f0f;
+  font-family: var(--heading);
+}
+
+.ftPrintCard__rowYear {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.ftPrintCard__rowMonthDay {
+  font-weight: 500;
   font-size: 11px;
-  font-weight: 600;
-  opacity: 0.95;
-  line-height: 1.2;
+  line-height: 1;
+  color: #2a1a10;
+}
+
+/* Compact spacing for the narrower aside layout beside the edit form */
+.ftPrintCardSection--aside .ftPrintCard {
+  width: min(300px, 100%);
+}
+
+.ftPrintCardSection--aside .ftPrintCard__rowBubble {
+  width: 28px;
+  height: 28px;
+}
+
+.ftPrintCardSection--aside .ftPrintCard__rowYear {
+  font-size: 15px;
+}
+
+.ftPrintCardSection--aside .ftPrintCard__rowMonthDay {
+  font-size: 10px;
 }
 
 @media (max-width: 520px) {
-  .ftPrintCard__badge {
-    min-width: 0;
-    max-width: none;
-    flex: 1 1 calc(50% - 8px);
+  .ftPrintCard {
+    width: min(280px, 100%);
   }
 }
 
