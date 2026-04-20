@@ -256,40 +256,50 @@ function LifecycleRow({
   )
 }
 
-/* ---------- Mini timeline dots under thumbnail (mirrors PersonNode tree dots) ---------- */
+/* ---------- Mini timeline dots under thumbnail (mirrors PersonNode tree dots) ----------
+   Per-row flex + gap keeps dots from overlapping in the narrow thumb column (percentage
+   absolute positioning was too tight for center-left / center-right pairs). ---------- */
 
-const THUMB_DOT_LANE_LEFT_PCT: Record<string, number> = {
-  left: 18,
-  'center-left': 37,
-  center: 50,
-  'center-right': 63,
-  right: 82,
+const THUMB_DOT_LANE_ORDER: Record<string, number> = {
+  left: 0,
+  'center-left': 1,
+  center: 2,
+  'center-right': 3,
+  right: 4,
 }
 const THUMB_DOT_SIZE_PX = 16
-const THUMB_DOT_ROW_GAP_PX = 1
 
 function ThumbTimelineDots({
   spots,
 }: {
   spots: ReturnType<typeof getPersonTimelineSpots>
 }) {
-  const rows = spots.reduce((m, s) => Math.max(m, s.row), 0) + 1
-  const height = rows * THUMB_DOT_SIZE_PX + (rows - 1) * THUMB_DOT_ROW_GAP_PX
+  const rows = useMemo(() => {
+    const rowIndices = [...new Set(spots.map((s) => s.row))].sort((a, b) => a - b)
+    return rowIndices.map((row) =>
+      spots
+        .filter((s) => s.row === row)
+        .sort((a, b) => (THUMB_DOT_LANE_ORDER[a.lane] ?? 2) - (THUMB_DOT_LANE_ORDER[b.lane] ?? 2)),
+    )
+  }, [spots])
+
   return (
-    <div className="ftPrintCard__thumbDots" style={{ height }} aria-hidden>
-      {spots.map((spot, i) => (
-        <span
-          key={i}
-          className="ftPrintCard__thumbDot"
-          style={{
-            left: `${THUMB_DOT_LANE_LEFT_PCT[spot.lane] ?? 50}%`,
-            top: spot.row * (THUMB_DOT_SIZE_PX + THUMB_DOT_ROW_GAP_PX),
-            background: spot.color ?? 'transparent',
-            borderColor: spot.color ? '#1b0f0f' : 'transparent',
-            width: THUMB_DOT_SIZE_PX,
-            height: THUMB_DOT_SIZE_PX,
-          }}
-        />
+    <div className="ftPrintCard__thumbDots" aria-hidden>
+      {rows.map((rowSpots, rowIdx) => (
+        <div key={rowIdx} className="ftPrintCard__thumbDotsRow">
+          {rowSpots.map((spot, i) => (
+            <span
+              key={`${spot.type}-${spot.lane}-${i}`}
+              className="ftPrintCard__thumbDot"
+              style={{
+                background: spot.color ?? 'transparent',
+                borderColor: spot.color ? '#1b0f0f' : 'transparent',
+                width: THUMB_DOT_SIZE_PX,
+                height: THUMB_DOT_SIZE_PX,
+              }}
+            />
+          ))}
+        </div>
       ))}
     </div>
   )
