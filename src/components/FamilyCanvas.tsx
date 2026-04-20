@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type MouseEvent,
+} from 'react'
 import { PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
 import { computeCardAlignmentSnap } from '../utils/alignmentSnap'
 import {
@@ -36,6 +45,11 @@ type PersonNodeType = Node<PersonNodeData, 'person'>
 
 /** Screen pixels — converted to flow units using zoom for consistent feel while panning/zooming */
 const ALIGNMENT_SNAP_SCREEN_PX = 8
+const TREE_BG_STORAGE_KEY = 'ft-tree-bg-image-dataurl'
+const TREE_BG_OPACITY_STORAGE_KEY = 'ft-tree-bg-opacity'
+const TREE_BG_SCALE_STORAGE_KEY = 'ft-tree-bg-scale'
+const TREE_BG_BASE_W = 1024
+const TREE_BG_BASE_H = 668
 
 /** Whole flow units — avoids subpixel drift between React Flow’s internal drag and persisted state. */
 function roundFlowPosition(p: NodePosition): NodePosition {
@@ -87,8 +101,64 @@ export default function FamilyCanvas() {
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [newlyAddedNodeIds, setNewlyAddedNodeIds] = useState<Record<string, true>>({})
   const newNodeHighlightTimeoutsRef = useRef<number[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [treeBackgroundDataUrl, setTreeBackgroundDataUrl] = useState<string | null>(null)
+  const [treeBackgroundOpacity, setTreeBackgroundOpacity] = useState(0.28)
+  const [treeBackgroundScale, setTreeBackgroundScale] = useState(1)
 
   const nodeTypes = useMemo(() => ({ person: PersonNode }), [])
+
+  useEffect(() => {
+    const savedBg = window.localStorage.getItem(TREE_BG_STORAGE_KEY)
+    const savedOpacity = Number.parseFloat(window.localStorage.getItem(TREE_BG_OPACITY_STORAGE_KEY) ?? '')
+    const savedScale = Number.parseFloat(window.localStorage.getItem(TREE_BG_SCALE_STORAGE_KEY) ?? '')
+    if (savedBg) setTreeBackgroundDataUrl(savedBg)
+    if (!Number.isNaN(savedOpacity)) setTreeBackgroundOpacity(Math.min(1, Math.max(0.05, savedOpacity)))
+    if (!Number.isNaN(savedScale)) setTreeBackgroundScale(Math.min(2, Math.max(0.4, savedScale)))
+  }, [])
+
+  const onBackgroundFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null
+      if (!dataUrl) return
+      setTreeBackgroundDataUrl(dataUrl)
+      window.localStorage.setItem(TREE_BG_STORAGE_KEY, dataUrl)
+    }
+    reader.readAsDataURL(file)
+    event.target.value = ''
+  }, [])
+
+  const clearBackgroundImage = useCallback(() => {
+    setTreeBackgroundDataUrl(null)
+    window.localStorage.removeItem(TREE_BG_STORAGE_KEY)
+  }, [])
+
+  const onBackgroundOpacityChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const next = Number.parseFloat(event.target.value)
+    if (Number.isNaN(next)) return
+    setTreeBackgroundOpacity(next)
+    window.localStorage.setItem(TREE_BG_OPACITY_STORAGE_KEY, String(next))
+  }, [])
+
+  const onBackgroundScaleChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const next = Number.parseFloat(event.target.value)
+    if (Number.isNaN(next)) return
+    setTreeBackgroundScale(next)
+    window.localStorage.setItem(TREE_BG_SCALE_STORAGE_KEY, String(next))
+  }, [])
+
+  const treeBgStyle = useMemo<CSSProperties>(() => {
+    const image = treeBackgroundDataUrl ? `url("${treeBackgroundDataUrl}")` : 'none'
+    return {
+      '--ft-tree-bg-image': image,
+      '--ft-tree-bg-opacity': String(treeBackgroundOpacity),
+      '--ft-tree-bg-width': `${Math.round(TREE_BG_BASE_W * treeBackgroundScale)}px`,
+      '--ft-tree-bg-height': `${Math.round(TREE_BG_BASE_H * treeBackgroundScale)}px`,
+    } as CSSProperties
+  }, [treeBackgroundDataUrl, treeBackgroundOpacity, treeBackgroundScale])
 
   const generationByPersonId = useMemo(
     () => computeGenerationByPersonId(state.persons, state.edges),
@@ -495,6 +565,55 @@ export default function FamilyCanvas() {
             to import a folder, then drag a thumbnail onto a card. Click a line and press Delete to remove it.
           </div>
         )}
+        <div className="ftCanvas__bgControls">
+          <div className="ftCanvas__bgTitle">Tree Template Overlay</div>
+          <div className="ftCanvas__bgActions">
+            <button
+              className="ftBtn"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {treeBackgroundDataUrl ? 'Replace Image' : 'Load Image'}
+            </button>
+            <button
+              className="ftBtn"
+              type="button"
+              onClick={clearBackgroundImage}
+              disabled={!treeBackgroundDataUrl}
+            >
+              Clear
+            </button>
+          </div>
+          <label className="ftCanvas__bgSliderRow">
+            Opacity
+            <input
+              type="range"
+              min={0.05}
+              max={0.9}
+              step={0.05}
+              value={treeBackgroundOpacity}
+              onChange={onBackgroundOpacityChange}
+            />
+          </label>
+          <label className="ftCanvas__bgSliderRow">
+            Scale
+            <input
+              type="range"
+              min={0.4}
+              max={2}
+              step={0.05}
+              value={treeBackgroundScale}
+              onChange={onBackgroundScaleChange}
+            />
+          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={onBackgroundFileChange}
+            style={{ display: 'none' }}
+          />
+        </div>
       </div>
       <ReactFlow
         nodes={nodes}
@@ -516,6 +635,7 @@ export default function FamilyCanvas() {
         isValidConnection={isValidConnection}
         attributionPosition="bottom-left"
         className="ftReactFlow ftReactFlow--browse"
+        style={treeBgStyle}
         onInit={(instance) => setReactFlowInstance(instance)}
         onNodesChange={(changes: NodeChange[]) => {
           const removals = changes.filter((c) => c.type === 'remove')

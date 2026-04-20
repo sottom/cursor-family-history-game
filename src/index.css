@@ -293,6 +293,42 @@ code {
   box-shadow: var(--shadow);
 }
 
+.ftCanvas__bgControls {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg), transparent 6%);
+  box-shadow: var(--shadow);
+}
+
+.ftCanvas__bgTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-h);
+}
+
+.ftCanvas__bgActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ftCanvas__bgSliderRow {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ftCanvas__bgSliderRow input[type='range'] {
+  width: 100%;
+}
+
 .ftPhotoLibraryPanel {
   position: absolute;
   top: 56px;
@@ -462,6 +498,31 @@ code {
   width: 100%;
   --xy-background-color: var(--canvas-bg);
   --xy-background-pattern-dots-color: var(--canvas-dots);
+}
+
+.ftReactFlow .react-flow__viewport {
+  position: relative;
+}
+
+.ftReactFlow .react-flow__viewport::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--ft-tree-bg-opacity, 0);
+  background-image: var(--ft-tree-bg-image, none);
+  background-repeat: no-repeat;
+  background-size: var(--ft-tree-bg-width, 1024px) var(--ft-tree-bg-height, 668px);
+  background-position: center center;
+}
+
+.ftReactFlow .react-flow__edges,
+.ftReactFlow .react-flow__edge-labels,
+.ftReactFlow .react-flow__nodes,
+.ftReactFlow .react-flow__connectionline {
+  position: relative;
+  z-index: 1;
 }
 
 .ftReactFlow--browse {
