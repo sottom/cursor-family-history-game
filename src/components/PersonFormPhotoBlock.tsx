@@ -79,13 +79,10 @@ const CANVAS_NAME_BAR_BASE: CSSProperties = {
 
 const CANVAS_STATUS_ROW: CSSProperties = {
   position: 'absolute',
-  left: '50%',
+  left: 0,
+  right: 0,
   bottom: 0,
-  transform: 'translateX(-50%)',
-  display: 'flex',
-  gap: 6,
-  alignItems: 'center',
-  justifyContent: 'center',
+  overflow: 'visible',
   pointerEvents: 'none',
   zIndex: 1,
 }
@@ -328,6 +325,7 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
 
   const startYear = useMemo(() => getTimelineStartYear(state), [state.persons])
   const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
+  const maxTimelineRow = useMemo(() => timelineSpots.reduce((m, s) => Math.max(m, s.row), 0), [timelineSpots])
 
   const generationAccent = useMemo(() => {
     const idx = computeGenerationByPersonId(state.persons, state.edges)[personId] ?? 0
@@ -434,12 +432,31 @@ export default function PersonFormPhotoBlock({ personId, onDraftTransformsChange
             <div style={nameBarStyle} aria-hidden>
               {displayName}
             </div>
-            <div style={CANVAS_STATUS_ROW} aria-hidden>
+            <div
+              style={{
+                ...CANVAS_STATUS_ROW,
+                height: PERSON_CARD_STATUS_DOT_PX + maxTimelineRow * (PERSON_CARD_STATUS_DOT_PX + 6),
+              }}
+              aria-hidden
+            >
               {timelineSpots.map((spot, idx) => (
                 <div
                   key={`preview-dot-${idx}`}
                   style={{
                     ...CANVAS_STATUS_DOT,
+                    position: 'absolute',
+                    left:
+                      spot.lane === 'left'
+                        ? `calc(50% - ${PERSON_CARD_STATUS_DOT_PX + 6}px)`
+                        : spot.lane === 'center'
+                          ? '50%'
+                          : spot.lane === 'right'
+                            ? `calc(50% + ${PERSON_CARD_STATUS_DOT_PX + 6}px)`
+                            : spot.lane === 'center-left'
+                              ? `calc(50% - ${(PERSON_CARD_STATUS_DOT_PX + 6) / 2}px)`
+                              : `calc(50% + ${(PERSON_CARD_STATUS_DOT_PX + 6) / 2}px)`,
+                    bottom: -spot.row * (PERSON_CARD_STATUS_DOT_PX + 6),
+                    transform: 'translateX(-50%)',
                     border: spot.color ? '2px solid #1b0f0f' : '2px solid transparent',
                     background: spot.color ? spot.color : 'transparent',
                   }}

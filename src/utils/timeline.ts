@@ -62,6 +62,10 @@ export type TimelineSpot = {
   type: 'birth' | 'marriage' | 'death'
   year: number | null
   color: string | null
+  /** 0 = primary row under the card; higher rows stack lower below it. */
+  row: number
+  /** Horizontal lane for rendering in a fixed 3-position layout. */
+  lane: 'left' | 'center' | 'right' | 'center-left' | 'center-right'
 }
 
 export function getPersonTimelineSpots(person: Person, startYear: number | null): TimelineSpot[] {
@@ -69,19 +73,34 @@ export function getPersonTimelineSpots(person: Person, startYear: number | null)
 
   // Birth
   const by = parseYear(person.dob?.dateISO)
-  spots.push({ type: 'birth', year: by, color: getEraColor(by, startYear) })
+  spots.push({ type: 'birth', year: by, color: getEraColor(by, startYear), row: 0, lane: 'left' })
 
-  // Marriages
+  // Marriages in a fixed 3-lane status area:
+  // 1  => center
+  // 2  => center, then center (stacked directly below)
+  // 3  => center, then centered pair on next row
+  // 4+ => continue with centered pairs on following rows
   const marriageCount = Math.max(1, person.marriages.length)
   for (let i = 0; i < marriageCount; i++) {
     const m = person.marriages[i]
     const my = m ? parseYear(m.dateISO) : null
-    spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear) })
+    if (i === 0) {
+      spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear), row: 0, lane: 'center' })
+      continue
+    }
+    if (i === 1 && marriageCount === 2) {
+      spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear), row: 1, lane: 'center' })
+      continue
+    }
+    const pairIndex = i - 1
+    const row = Math.floor(pairIndex / 2) + 1
+    const lane = pairIndex % 2 === 0 ? 'center-left' : 'center-right'
+    spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear), row, lane })
   }
 
   // Death
   const dy = parseYear(person.dod?.dateISO)
-  spots.push({ type: 'death', year: dy, color: getEraColor(dy, startYear) })
+  spots.push({ type: 'death', year: dy, color: getEraColor(dy, startYear), row: 0, lane: 'right' })
 
   return spots
 }
