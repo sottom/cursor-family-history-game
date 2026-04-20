@@ -115,8 +115,8 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   /** Visible hit targets; must sit above card content (z-index) so they show and receive drags. */
   const hz = {
     lineage: {
-      width: 8,
-      height: 8,
+      width: 16,
+      height: 16,
       borderRadius: 999,
       background: 'var(--bg)',
       border: '1.5px solid var(--accent)',
@@ -124,8 +124,8 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       zIndex: 24,
     } as const,
     lineageSide: {
-      width: 4,
-      height: 4,
+      width: 10,
+      height: 10,
       borderRadius: 999,
       background: 'var(--bg)',
       border: '0.75px solid var(--accent)',
@@ -133,8 +133,8 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       zIndex: 24,
     } as const,
     spouse: {
-      width: 8,
-      height: 8,
+      width: 16,
+      height: 16,
       borderRadius: 999,
       background: 'var(--bg)',
       border: '1.5px solid #b79c7a',
@@ -142,8 +142,8 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       zIndex: 24,
     } as const,
     spouseSide: {
-      width: 4,
-      height: 4,
+      width: 10,
+      height: 10,
       borderRadius: 999,
       background: 'var(--bg)',
       border: '0.75px solid #b79c7a',
