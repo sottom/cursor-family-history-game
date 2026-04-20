@@ -137,3 +137,12 @@ export async function ingestPersonPhotoBlob(params: {
   }
 }
 
+/** Remove all IndexedDB blobs for a person's photos (main, thumb, full-res original). */
+export async function deletePersonPhotoBlobs(personId: string): Promise<void> {
+  await Promise.all([
+    deleteBlob(getPhotoBlobKey(personId, 'photoMain')),
+    deleteBlob(getPhotoBlobKey(personId, 'photoThumb')),
+    deleteBlob(getOriginalBlobKey(personId)),
+  ])
+}
+

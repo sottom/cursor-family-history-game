@@ -5,7 +5,7 @@ import type { PhotoTransform } from '../state/appState'
 /**
  * Wrapper styles for a framed photo (object-fit: contain).
  * Translate + scale on the same element with origin top-left matches the zoom-to-cursor math in
- * `PersonFormPhotoBlock` and keeps canvas / print / export aligned with the editor.
+ * the keepsake card editor, and keeps canvas / print / export aligned.
  */
 export function personPhotoFrameWrapperStyle(t: PhotoTransform): CSSProperties {
   return {

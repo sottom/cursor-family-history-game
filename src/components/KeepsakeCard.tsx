@@ -1,5 +1,6 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
+import { usePhotoFramingInteraction } from '../hooks/usePhotoFramingInteraction'
 import { useAppState } from '../state/AppProvider'
 import {
   PERSON_MAIN_OVAL_ASPECT_RATIO,
@@ -40,6 +41,12 @@ export type KeepsakeCardProps = {
    *  rasterizer's tight bounding-box capture. Use when saving to PNG for
    *  print — the template background is already baked into the artwork. */
   exportMode?: boolean
+  /** Edit modal: drag / scroll-zoom photos directly on the card oval and thumbnail. */
+  interactive?: boolean
+  /** Edit modal: show spinners on oval + thumb while a new photo is ingesting. */
+  photoImporting?: boolean
+  onMainTransformChange?: (t: PhotoTransform) => void
+  onThumbTransformChange?: (t: PhotoTransform) => void
 }
 
 const DEFAULT_T: PhotoTransform = { xPercent: 0, yPercent: 0, scale: 1 }
@@ -126,6 +133,15 @@ function PhotoInFrame({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function PhotoSlotBusyOverlay({ show }: { show: boolean }) {
+  if (!show) return null
+  return (
+    <div className="ftPrintCard__photoLoadingOverlay" role="status" aria-live="polite" aria-label="Uploading photo">
+      <div className="ftSpinner ftPrintCard__photoLoadingSpinner" />
     </div>
   )
 }
@@ -248,12 +264,34 @@ export default function KeepsakeCard({
   backgroundUrl,
   className,
   exportMode = false,
+  interactive = false,
+  photoImporting = false,
+  onMainTransformChange,
+  onThumbTransformChange,
 }: KeepsakeCardProps) {
   const state = useAppState()
   const person: Person | undefined = state.persons[personId]
 
   const mainT = mainTransform ?? person?.photoMain?.transform ?? DEFAULT_T
   const thumbT = thumbTransform ?? person?.photoThumb?.transform ?? DEFAULT_T
+
+  const [mainHitEl, setMainHitEl] = useState<HTMLDivElement | null>(null)
+  const [thumbHitEl, setThumbHitEl] = useState<HTMLDivElement | null>(null)
+
+  const hasMainPhoto = !!person?.photoMain?.blobKey
+  const hasThumbPhoto = !!person?.photoThumb?.blobKey
+
+  const { onMainPointerDown, onThumbPointerDown } = usePhotoFramingInteraction({
+    enabled: interactive && !!(onMainTransformChange && onThumbTransformChange) && !photoImporting,
+    mainFrameEl: mainHitEl,
+    thumbFrameEl: thumbHitEl,
+    getMain: () => mainT,
+    getThumb: () => thumbT,
+    setMain: (t) => onMainTransformChange?.(t),
+    setThumb: (t) => onThumbTransformChange?.(t),
+    hasMainPhoto,
+    hasThumbPhoto,
+  })
 
   const generationAccent = useMemo(() => {
     const idx = computeGenerationByPersonId(state.persons, state.edges)[personId] ?? 0
@@ -339,7 +377,19 @@ export default function KeepsakeCard({
 
       <div className="ftPrintCard__thumbArea">
         <div className="ftPrintCard__thumb" style={{ background: generationAccent }}>
-          <PhotoInFrame transform={thumbT} url={photoThumbUrl} emptyLabel="Thumb" borderRadius="50%" />
+          <div className="ftPrintCard__photoFrameInner">
+            <PhotoInFrame transform={thumbT} url={photoThumbUrl} emptyLabel="Thumb" borderRadius="50%" />
+            <PhotoSlotBusyOverlay show={photoImporting} />
+            <div className="ftPrintCard__thumbBorder" aria-hidden />
+            {interactive ? (
+              <div
+                ref={setThumbHitEl}
+                className="ftPrintCard__photoHit"
+                onPointerDown={onThumbPointerDown}
+                aria-hidden
+              />
+            ) : null}
+          </div>
         </div>
         <ThumbTimelineDots spots={timelineSpots} />
       </div>
@@ -349,7 +399,18 @@ export default function KeepsakeCard({
           className="ftPrintCard__oval"
           style={{ borderColor: generationAccent, aspectRatio: PERSON_MAIN_OVAL_ASPECT_RATIO }}
         >
-          <PhotoInFrame transform={mainT} url={photoMainUrl} emptyLabel="Portrait" borderRadius="50%" />
+          <div className="ftPrintCard__photoFrameInner ftPrintCard__photoFrameInner--oval">
+            <PhotoInFrame transform={mainT} url={photoMainUrl} emptyLabel="Portrait" borderRadius="50%" />
+            <PhotoSlotBusyOverlay show={photoImporting} />
+            {interactive ? (
+              <div
+                ref={setMainHitEl}
+                className="ftPrintCard__photoHit"
+                onPointerDown={onMainPointerDown}
+                aria-hidden
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 

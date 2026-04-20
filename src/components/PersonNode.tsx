@@ -22,6 +22,10 @@ import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean; generationIndex?: number }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
 
+/** Matches `.ftPrintCard__oval` on the keepsake preview (same border weight + drop shadow). */
+const CANVAS_OVAL_BORDER_PX = 5
+const CANVAS_OVAL_BOX_SHADOW = '0 6px 14px rgba(0, 0, 0, 0.2)'
+
 /** Loads portrait bytes; `contentRevision` busts cache when IndexedDB is overwritten under the same blob key. */
 function useBlobUrl(blobKey: string | undefined, contentRevision: number | undefined) {
   const [url, setUrl] = useState<string | null>(null)
@@ -209,12 +213,12 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
           bottom: PERSON_MAIN_OVAL_BOTTOM_INSET,
           borderRadius: '50%',
           overflow: 'hidden',
-          border: `8px solid ${generationAccent}`,
+          border: `${CANVAS_OVAL_BORDER_PX}px solid ${generationAccent}`,
           background: '#d5c2a7',
           pointerEvents: 'none',
           boxShadow: selected
-            ? 'var(--card-shadow), 0 0 0 5px color-mix(in srgb, var(--accent), white 18%), 0 0 16px color-mix(in srgb, var(--accent), transparent 45%)'
-            : 'var(--card-shadow)',
+            ? `${CANVAS_OVAL_BOX_SHADOW}, 0 0 0 5px color-mix(in srgb, var(--accent), white 18%), 0 0 16px color-mix(in srgb, var(--accent), transparent 45%)`
+            : CANVAS_OVAL_BOX_SHADOW,
           transition: 'box-shadow 140ms ease-out',
         }}
       >

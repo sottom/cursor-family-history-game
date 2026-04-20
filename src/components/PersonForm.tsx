@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
-import type { PersonDate, PhotoTransform } from '../state/appState'
-import PersonFormPhotoBlock from './PersonFormPhotoBlock'
+import type { Person, PersonDate, PhotoTransform } from '../state/appState'
 import PersonPrintCardPreview from './PersonPrintCardPreview'
 import { DatePicker } from './DatePicker'
 
@@ -28,6 +27,10 @@ function DateField({
 
 const DEFAULT_PHOTO_T: PhotoTransform = { xPercent: 0, yPercent: 0, scale: 1 }
 
+function transformsEqual(a: PhotoTransform, b: PhotoTransform): boolean {
+  return a.xPercent === b.xPercent && a.yPercent === b.yPercent && a.scale === b.scale
+}
+
 export default function PersonForm() {
   const state = useAppState()
   const dispatch = useAppDispatch()
@@ -39,6 +42,22 @@ export default function PersonForm() {
     main: PhotoTransform
     thumb: PhotoTransform
   } | null>(null)
+
+  const draftMainRef = useRef<PhotoTransform>(DEFAULT_PHOTO_T)
+  const draftThumbRef = useRef<PhotoTransform>(DEFAULT_PHOTO_T)
+  const initialMainRef = useRef<PhotoTransform>(DEFAULT_PHOTO_T)
+  const initialThumbRef = useRef<PhotoTransform>(DEFAULT_PHOTO_T)
+  /**
+   * On close, `person` becomes undefined in the same pass as `personId` clears, so
+   * `personRef.current` is already empty when the persist effect cleanup runs.
+   * Keep the last loaded person while the modal was open so we can read blob keys.
+   */
+  const personSnapshotRef = useRef<Person | undefined>(undefined)
+  useEffect(() => {
+    if (personId && person) {
+      personSnapshotRef.current = person
+    }
+  }, [personId, person])
 
   const title = useMemo(() => person?.fullName || person?.shortName || 'Person', [person])
 
@@ -54,14 +73,69 @@ export default function PersonForm() {
 
   useEffect(() => {
     if (!personId || !person) return
-    setLivePhotoTransforms({
-      main: person.photoMain?.transform ?? DEFAULT_PHOTO_T,
-      thumb: person.photoThumb?.transform ?? DEFAULT_PHOTO_T,
-    })
+    const m = person.photoMain?.transform ?? DEFAULT_PHOTO_T
+    const t = person.photoThumb?.transform ?? DEFAULT_PHOTO_T
+    initialMainRef.current = m
+    initialThumbRef.current = t
+    draftMainRef.current = m
+    draftThumbRef.current = t
+    setLivePhotoTransforms({ main: m, thumb: t })
   }, [personId, person?.photoMain?.blobKey, person?.photoThumb?.blobKey, person?.photoRevision ?? 0])
 
-  const onPhotoDraftTransformsChange = useCallback((main: PhotoTransform, thumb: PhotoTransform) => {
-    setLivePhotoTransforms({ main, thumb })
+  useEffect(() => {
+    if (!livePhotoTransforms) return
+    draftMainRef.current = livePhotoTransforms.main
+    draftThumbRef.current = livePhotoTransforms.thumb
+  }, [livePhotoTransforms])
+
+  /** On modal close, persist pending transforms so the canvas updates once. */
+  useEffect(() => {
+    const id = personId
+    return () => {
+      if (!id) return
+      const p = personSnapshotRef.current
+      if (!p) return
+      const patch: Partial<Person> = {}
+      const mk = p.photoMain?.blobKey
+      const tk = p.photoThumb?.blobKey
+      if (mk && !transformsEqual(draftMainRef.current, initialMainRef.current)) {
+        patch.photoMain = { blobKey: mk, transform: draftMainRef.current }
+      }
+      if (tk && !transformsEqual(draftThumbRef.current, initialThumbRef.current)) {
+        patch.photoThumb = { blobKey: tk, transform: draftThumbRef.current }
+      }
+      if (Object.keys(patch).length > 0) {
+        dispatch({ type: 'UPDATE_PERSON', payload: { personId: id, patch } })
+      }
+    }
+  }, [dispatch, personId])
+
+  const handleMainTransform = useCallback((t: PhotoTransform) => {
+    setLivePhotoTransforms((prev) => ({
+      main: t,
+      thumb: prev?.thumb ?? DEFAULT_PHOTO_T,
+    }))
+  }, [])
+
+  const handleThumbTransform = useCallback((t: PhotoTransform) => {
+    setLivePhotoTransforms((prev) => ({
+      main: prev?.main ?? DEFAULT_PHOTO_T,
+      thumb: t,
+    }))
+  }, [])
+
+  const resetMainFraming = useCallback(() => {
+    setLivePhotoTransforms((prev) => ({
+      main: DEFAULT_PHOTO_T,
+      thumb: prev?.thumb ?? DEFAULT_PHOTO_T,
+    }))
+  }, [])
+
+  const resetThumbFraming = useCallback(() => {
+    setLivePhotoTransforms((prev) => ({
+      main: prev?.main ?? DEFAULT_PHOTO_T,
+      thumb: DEFAULT_PHOTO_T,
+    }))
   }, [])
 
   if (!personId || !person) return null
@@ -85,9 +159,24 @@ export default function PersonForm() {
 
         <div className="ftModal__body ftModal__body--person">
           <div className="ftPersonEditGrid">
-            <div id="ft-person-form-photo-anchor" className="ftPersonEditGrid__photo" tabIndex={-1}>
-              <PersonFormPhotoBlock personId={personId} onDraftTransformsChange={onPhotoDraftTransformsChange} />
-            </div>
+            <aside id="ft-person-keepsake-anchor" className="ftPersonEditGrid__print" aria-label="Print card preview">
+              <PersonPrintCardPreview
+                personId={personId}
+                mainTransform={livePhotoTransforms?.main}
+                thumbTransform={livePhotoTransforms?.thumb}
+                photoBlobRevision={person.photoRevision ?? 0}
+                layout="aside"
+                interactive
+                onMainTransformChange={handleMainTransform}
+                onThumbTransformChange={handleThumbTransform}
+                onResetMainFraming={resetMainFraming}
+                onResetThumbFraming={resetThumbFraming}
+                hasPhotoMain={!!person.photoMain?.blobKey}
+                hasPhotoThumb={!!person.photoThumb?.blobKey}
+                draftMainRef={draftMainRef}
+                draftThumbRef={draftThumbRef}
+              />
+            </aside>
             <div className="ftPersonEditGrid__fields ftPersonFormLayout__fields" style={{ display: 'grid', gap: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr)', gap: 10 }}>
             <label style={{ display: 'grid', gap: 6 }}>
@@ -169,19 +258,9 @@ export default function PersonForm() {
             </div>
           ) : null}
             </div>
-            <aside className="ftPersonEditGrid__print" aria-label="Print card preview">
-              <PersonPrintCardPreview
-                personId={personId}
-                mainTransform={livePhotoTransforms?.main}
-                thumbTransform={livePhotoTransforms?.thumb}
-                photoBlobRevision={person.photoRevision ?? 0}
-                layout="aside"
-              />
-            </aside>
           </div>
         </div>
       </div>
     </div>
   )
 }
-

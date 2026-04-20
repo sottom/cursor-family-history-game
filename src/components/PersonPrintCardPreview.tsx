@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 
 import { useAppState } from '../state/AppProvider'
 import { type PhotoTransform } from '../state/appState'
 import { getBlob, getOriginalBlobKey } from '../storage/indexedDb'
 import KeepsakeCard from './KeepsakeCard'
+import PersonPhotoImportControls from './PersonPhotoImportControls'
 
 type Props = {
   personId: string
@@ -14,6 +15,17 @@ type Props = {
   photoBlobRevision?: number
   /** Narrow column beside the form: tighter copy, no "jump to photo" (card stays in view). */
   layout?: 'default' | 'aside'
+  /** Edit modal: drag / scroll-zoom on the keepsake card photos. */
+  interactive?: boolean
+  onMainTransformChange?: (t: PhotoTransform) => void
+  onThumbTransformChange?: (t: PhotoTransform) => void
+  onResetMainFraming?: () => void
+  onResetThumbFraming?: () => void
+  hasPhotoMain?: boolean
+  hasPhotoThumb?: boolean
+  /** When set with aside layout, photo import sits in the toolbar above the preview. */
+  draftMainRef?: MutableRefObject<PhotoTransform>
+  draftThumbRef?: MutableRefObject<PhotoTransform>
 }
 
 /* ---------- Blob-backed object URL hooks (revoke on change) ---------- */
@@ -86,9 +98,19 @@ export default function PersonPrintCardPreview({
   thumbTransform,
   photoBlobRevision = 0,
   layout = 'default',
+  interactive = false,
+  onMainTransformChange,
+  onThumbTransformChange,
+  onResetMainFraming,
+  onResetThumbFraming,
+  hasPhotoMain = false,
+  hasPhotoThumb = false,
+  draftMainRef,
+  draftThumbRef,
 }: Props) {
   const state = useAppState()
   const person = state.persons[personId]
+  const [photoImporting, setPhotoImporting] = useState(false)
 
   const mainKey = person?.photoMain?.blobKey
   const thumbKey = person?.photoThumb?.blobKey
@@ -98,6 +120,43 @@ export default function PersonPrintCardPreview({
   if (!person) return null
 
   const aside = layout === 'aside'
+  const showResets = interactive && (onResetMainFraming || onResetThumbFraming)
+  const photoToolbar =
+    aside && draftMainRef && draftThumbRef
+      ? (
+          <div className="ftPrintCardSection__toolsWrap">
+            <div className="ftPrintCardSection__toolsRow ftPrintCardSection__toolsRow--primary" role="group" aria-label="Import photo">
+              <PersonPhotoImportControls
+                variant="toolbar"
+                personId={personId}
+                draftMainRef={draftMainRef}
+                draftThumbRef={draftThumbRef}
+                onImportBusyChange={setPhotoImporting}
+              />
+            </div>
+            {/* {showResets ? (
+              <div className="ftPrintCardSection__toolsRow ftPrintCardSection__toolsRow--reset" role="group" aria-label="Reset framing">
+                  <button
+                    type="button"
+                    className="ftBtn ftPrintCardSection__resetBtn"
+                    disabled={!hasPhotoMain}
+                    onClick={() => onResetMainFraming?.()}
+                  >
+                    Reset oval
+                  </button>
+                  <button
+                    type="button"
+                    className="ftBtn ftPrintCardSection__resetBtn"
+                    disabled={!hasPhotoThumb}
+                    onClick={() => onResetThumbFraming?.()}
+                  >
+                    Reset thumbnail
+                  </button>
+              </div>
+            ) : null} */}
+          </div>
+        )
+      : null
 
   return (
     <section
@@ -109,9 +168,12 @@ export default function PersonPrintCardPreview({
           Keepsake print card
         </h3>
         {aside ? (
-          <p className="ftPrintCardSection__blurb ftPrintCardSection__blurb--aside">
-            Live preview of portrait, thumbnail, name, and dates. Framing saves when you close this window.
-          </p>
+          <>
+            <p className="ftPrintCardSection__blurb ftPrintCardSection__blurb--aside">
+              Drag to reposition, scroll to zoom. Oval updates tree.
+            </p>
+            {photoToolbar}
+          </>
         ) : (
           <>
             <p className="ftPrintCardSection__blurb">
@@ -123,12 +185,10 @@ export default function PersonPrintCardPreview({
               type="button"
               className="ftBtn ftPrintCardSection__jump"
               onClick={() =>
-                document
-                  .getElementById('ft-person-form-photo-anchor')
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                document.getElementById('ft-person-keepsake-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }
             >
-              Jump to photo editing
+              Jump to keepsake card
             </button>
           </>
         )}
@@ -141,8 +201,13 @@ export default function PersonPrintCardPreview({
           thumbTransform={thumbTransform}
           photoMainUrl={mainUrl}
           photoThumbUrl={thumbUrl}
+          interactive={interactive}
+          photoImporting={photoImporting}
+          onMainTransformChange={onMainTransformChange}
+          onThumbTransformChange={onThumbTransformChange}
         />
       </div>
+            <p className="ftPrintCardSection__pasteHint">You can also paste an image anywhere in this window</p>
     </section>
   )
 }

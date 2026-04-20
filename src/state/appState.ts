@@ -346,7 +346,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const existing = state.persons[personId]
       if (!existing) return state
       const merged: Person = { ...existing, ...patch }
-      if (patch.photoMain !== undefined || patch.photoThumb !== undefined) {
+      // Bump revision when photo refs change, including explicit clears (`undefined` must still count).
+      if (Object.prototype.hasOwnProperty.call(patch, 'photoMain') || Object.prototype.hasOwnProperty.call(patch, 'photoThumb')) {
         merged.photoRevision = (existing.photoRevision ?? 0) + 1
       }
       return {

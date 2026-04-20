@@ -682,24 +682,26 @@ code {
   max-width: 100%;
 }
 
-/* Person edit modal: photo | fields | print preview (sticky on wide screens). */
+/* Person edit modal: keepsake preview (left) | names & dates (right). */
 .ftPersonEditGrid {
   display: grid;
-  grid-template-columns: minmax(0, min(280px, 34%)) minmax(0, 1fr) minmax(184px, 300px);
-  gap: 16px;
+  grid-template-columns: minmax(260px, min(520px, 46vw)) minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
   width: 100%;
   max-width: 100%;
   min-width: 0;
 }
 
-.ftPersonEditGrid__photo,
 .ftPersonEditGrid__fields {
   min-width: 0;
 }
 
 .ftPersonEditGrid__print {
   min-width: 0;
+  width: 100%;
+  max-width: 520px;
+  justify-self: start;
   position: sticky;
   top: 4px;
   align-self: start;
@@ -720,7 +722,7 @@ code {
   min-width: 0;
 }
 
-#ft-person-form-photo-anchor {
+#ft-person-keepsake-anchor {
   min-width: 0;
 }
 
@@ -796,22 +798,17 @@ code {
     grid-template-columns: 1fr;
   }
 
-  .ftPersonEditGrid__print {
-    position: static;
-    z-index: auto;
-  }
-
-  /* Photo first, preview second so the card stays above the long form without scrolling. */
-  .ftPersonEditGrid__photo {
+  /* Names & dates first on narrow viewports; keepsake below. */
+  .ftPersonEditGrid__fields {
     order: 1;
   }
 
   .ftPersonEditGrid__print {
     order: 2;
-  }
-
-  .ftPersonEditGrid__fields {
-    order: 3;
+    position: static;
+    z-index: auto;
+    justify-self: stretch;
+    max-width: none;
   }
 }
 
@@ -1206,6 +1203,112 @@ code {
   font-size: 12px;
 }
 
+.ftPrintCardSection__toolsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ftPrintCardSection__toolsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.ftPrintCardSection__toolsRow--reset {
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border), transparent 8%);
+}
+
+.ftPrintCardSection__photoBtn {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ftPrintCardSection__pasteHint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text);
+  opacity: 0.88;
+  max-width: 100%;
+}
+
+.ftPrintCardSection--aside .ftPrintCardSection__pasteHint {
+  text-align: left;
+}
+
+.ftPrintCardSection__resetBtn {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ftPrintCardSection--aside .ftPrintCardWrap {
+  justify-content: flex-start;
+}
+
+.ftPersonPhotoImport {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg), transparent 4%);
+  box-shadow: var(--shadow);
+}
+
+.ftPersonPhotoImport__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ftPersonPhotoImport__title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-h);
+  letter-spacing: 0.02em;
+}
+
+.ftPersonPhotoImport__hint {
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.88;
+  line-height: 1.3;
+}
+
+.ftPersonPhotoImport__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ftPersonPhotoImport__file {
+  display: none;
+}
+
+.ftPersonPhotoImport__clear {
+  color: #8a3d3d;
+  border-color: color-mix(in srgb, #8a3d3d, transparent 55%);
+  background: color-mix(in srgb, #8a3d3d, transparent 94%);
+}
+
+.ftPersonPhotoImport__clear:hover:not(:disabled) {
+  background: color-mix(in srgb, #8a3d3d, transparent 88%);
+  border-color: color-mix(in srgb, #8a3d3d, transparent 40%);
+}
+
+.ftPersonPhotoImport__clear:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .ftPrintCardWrap {
   display: flex;
   justify-content: center;
@@ -1274,13 +1377,70 @@ code {
 }
 
 .ftPrintCard__thumb {
+  position: relative;
   width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
   border: none;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1.5px var(--ftCardAccent, #5F2E15), 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   box-sizing: border-box;
+}
+
+.ftPrintCard__photoFrameInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.ftPrintCard__photoFrameInner--oval {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+.ftPrintCard__photoHit {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  touch-action: none;
+  cursor: grab;
+}
+
+.ftPrintCard__photoHit:active {
+  cursor: grabbing;
+}
+
+/* Generation-accent ring above photo (inset box-shadow sits under image content). */
+.ftPrintCard__thumbBorder {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  border: 2px solid var(--ftCardAccent, #5F2E15);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* Dim + spinner while a new photo is ingesting (above image, below accent ring + hit layer). */
+.ftPrintCard__photoLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  background: rgba(22, 14, 8, 0.45);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.ftPrintCard__photoLoadingSpinner.ftSpinner {
+  width: min(36px, 15cqw);
+  height: min(36px, 15cqw);
+  border-width: 3px;
+  margin: 0;
 }
 
 .ftPrintCard__thumbDots {
@@ -1321,6 +1481,7 @@ code {
 }
 
 .ftPrintCard__oval {
+  position: relative;
   box-sizing: border-box;
   width: var(--ft-print-oval-w);
   border-radius: 50%;
@@ -1524,11 +1685,10 @@ code {
   }
 }
 
-/* Compact width for the aside layout beside the edit form. Because the inner
-   sizes above are declared in cqw, they auto-scale with this narrower card
-   width — no per-element overrides needed. */
+/* Aside layout: use a wider card than the default min(340px) so the small
+   thumbnail (top-left) is easier to see while adjusting framing. */
 .ftPrintCardSection--aside .ftPrintCard {
-  width: min(300px, 100%);
+  width: min(430px, 100%);
 }
 
 @media (max-width: 520px) {
