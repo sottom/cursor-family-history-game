@@ -264,6 +264,11 @@ export default function FamilyCanvas() {
           const tx = state.nodePositions[edge.target]?.x ?? 0
           const leftId = sx <= tx ? edge.source : edge.target
           const rightId = sx <= tx ? edge.target : edge.source
+          const leftPerson = state.persons[leftId]
+          const rightPerson = state.persons[rightId]
+          const isActivePartnerConnection =
+            !!leftPerson?.marriages?.some((m) => m.spouseId === rightId && m.isCurrent) ||
+            !!rightPerson?.marriages?.some((m) => m.spouseId === leftId && m.isCurrent)
           return {
             id: edge.id,
             source: leftId,
@@ -272,6 +277,22 @@ export default function FamilyCanvas() {
             sourceHandle: spouseSourceHandleId(edge, state.edges),
             targetHandle: spouseTargetHandleId(edge, state.edges),
             style: { stroke: '#a822e5', strokeWidth: 3, strokeDasharray: '4 4' },
+            label: isActivePartnerConnection ? 'Active Partner' : undefined,
+            labelStyle: isActivePartnerConnection
+              ? {
+                  fill: '#ffffff',
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: 0.3,
+                  textTransform: 'uppercase' as const,
+                }
+              : undefined,
+            labelShowBg: isActivePartnerConnection,
+            labelBgStyle: isActivePartnerConnection
+              ? { fill: '#a822e5', fillOpacity: 1, stroke: '#ffffff', strokeWidth: 0.75 }
+              : undefined,
+            labelBgPadding: isActivePartnerConnection ? [8, 4] : undefined,
+            labelBgBorderRadius: isActivePartnerConnection ? 999 : undefined,
             data: { relationshipType: edge.type, marriage: edge.marriage },
             interactionWidth: 28,
           }
@@ -350,7 +371,7 @@ export default function FamilyCanvas() {
       y = centerFlow.y - PERSON_CARD_H / 2
     }
 
-    const p = createNewPerson({ shortName: 'Person', fullName: '' })
+    const p = createNewPerson({ shortName: '', fullName: '' })
     dispatch({
       type: '__BATCH',
       payload: {

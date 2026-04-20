@@ -63,6 +63,7 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const photoMainTransform: PhotoTransform = person?.photoMain?.transform ?? { xPercent: 0, yPercent: 0, scale: 1 }
 
   const [hoveredHandleKey, setHoveredHandleKey] = useState<string | null>(null)
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false)
 
   const startYear = useMemo(() => getTimelineStartYear(state), [state.persons])
   const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
@@ -98,12 +99,15 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
       const blob = await getBlob(entry.blobKey)
       if (!blob) return
       const transform = { xPercent: 0, yPercent: 0, scale: 1 }
+      setIsProcessingPhoto(true)
       try {
         const mainRef = await ingestPersonPhotoBlob({ personId, variant: 'photoMain', sourceBlob: blob, transform })
         const thumbRef = await ingestPersonPhotoBlob({ personId, variant: 'photoThumb', sourceBlob: blob, transform })
         dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { photoMain: mainRef, photoThumb: thumbRef } } })
       } catch (err) {
         console.error('Could not apply library photo to this person', err)
+      } finally {
+        setIsProcessingPhoto(false)
       }
     },
     [dispatch, person, personId, state.photoLibrary],
@@ -215,6 +219,26 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
         }}
       >
         <div style={personPhotoFrameWrapperStyle(photoMainTransform)}>
+          {isProcessingPhoto ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                background: 'rgba(0,0,0,0.4)',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                zIndex: 10,
+              }}
+            >
+              <div className="ftSpinner" />
+              Loading...
+            </div>
+          ) : null}
           {mainUrl ? (
             <img
               src={mainUrl}

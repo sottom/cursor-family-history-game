@@ -490,7 +490,28 @@ code {
   width: 100%;
   aspect-ratio: 1;
   border-radius: 6px;
-  background: linear-gradient(135deg, #e8dfd4, #d5c2a7);
+  background: linear-gradient(90deg, #e8dfd4 25%, #f2ede6 50%, #e8dfd4 75%);
+  background-size: 200% 100%;
+  animation: ftShimmer 1.5s infinite linear;
+}
+
+@keyframes ftShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ftSpinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: ftSpin 1s linear infinite;
+  margin: 0 auto 6px;
+}
+
+@keyframes ftSpin {
+  to { transform: rotate(360deg); }
 }
 
 .ftPhotoLibraryPanel__thumbPlaceholder--heic {
@@ -501,6 +522,7 @@ code {
   letter-spacing: 0.06em;
   color: #4a3828;
   background: linear-gradient(145deg, #efe6dc, #d8c8b4);
+  animation: none;
 }
 
 .ftPhotoLibraryPanel__thumbLabel {
@@ -702,6 +724,62 @@ code {
 
 .ftPersonFormLayout__fields label {
   min-width: 0;
+}
+
+.ftPrimaryPartnerToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ftPrimaryPartnerToggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ftPrimaryPartnerToggle__track {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border), transparent 20%);
+  background: color-mix(in srgb, var(--bg), var(--accent) 6%);
+  position: relative;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.ftPrimaryPartnerToggle__thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 140ms ease;
+}
+
+.ftPrimaryPartnerToggle input:checked + .ftPrimaryPartnerToggle__track {
+  border-color: color-mix(in srgb, var(--accent), transparent 30%);
+  background: color-mix(in srgb, var(--accent), white 18%);
+}
+
+.ftPrimaryPartnerToggle input:checked + .ftPrimaryPartnerToggle__track .ftPrimaryPartnerToggle__thumb {
+  transform: translateX(16px);
+}
+
+.ftPrimaryPartnerToggle input:focus-visible + .ftPrimaryPartnerToggle__track {
+  outline: 2px solid color-mix(in srgb, var(--accent), white 20%);
+  outline-offset: 2px;
+}
+
+.ftPrimaryPartnerToggle__text {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
 }
 
 @media (max-width: 1020px) {
@@ -933,10 +1011,19 @@ code {
 }
 
 .ftPersonCard--new {
-  box-shadow:
-    var(--card-shadow),
-    0 0 0 1px color-mix(in srgb, var(--accent), transparent 55%),
-    0 6px 20px color-mix(in srgb, var(--accent), transparent 88%);
+  animation: ftPersonCardNewGlow 3s ease-out forwards;
+}
+
+@keyframes ftPersonCardNewGlow {
+  0% {
+    box-shadow: var(--card-shadow), 0 0 0 2px #A020F0, 0 0 20px #A020F0;
+  }
+  70% {
+    box-shadow: var(--card-shadow), 0 0 0 2px #A020F0, 0 0 20px #A020F0;
+  }
+  100% {
+    box-shadow: var(--card-shadow);
+  }
 }
 
 .ftPersonCard__newBadge {

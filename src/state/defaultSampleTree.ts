@@ -17,35 +17,52 @@ function parentChild(parentId: string, childId: string): Edge {
   return { id: crypto.randomUUID(), source: parentId, target: childId, type: 'parent-child' }
 }
 
+function linkMarriage(next: AppState, a: string, b: string): void {
+  const personA = next.persons[a]
+  const personB = next.persons[b]
+  if (!personA || !personB) return
+
+  personA.marriages = [...(personA.marriages ?? []), { spouseId: b, isCurrent: true }]
+  personB.marriages = [...(personB.marriages ?? []), { spouseId: a, isCurrent: true }]
+}
+
 /**
  * 15 people across 4 generations (great-grandparents → child), names only — no dates, marriages, or notes.
  */
 export function buildFourGenerationSampleState(): AppState {
   const next = createInitialAppState()
 
-  const o = createNewPerson({ fullName: 'Omar West', shortName: 'Omar West' })
-  const p = createNewPerson({ fullName: 'Petra West', shortName: 'Petra West' })
-  const q = createNewPerson({ fullName: 'Quinn Lee', shortName: 'Quinn Lee' })
-  const r = createNewPerson({ fullName: 'Rhea Lee', shortName: 'Rhea Lee' })
-  const s = createNewPerson({ fullName: 'Saul Chen', shortName: 'Saul Chen' })
-  const t = createNewPerson({ fullName: 'Tessa Chen', shortName: 'Tessa Chen' })
-  const u = createNewPerson({ fullName: 'Uri Park', shortName: 'Uri Park' })
-  const v = createNewPerson({ fullName: 'Vera Park', shortName: 'Vera Park' })
+  const o = createNewPerson({ fullName: '', shortName: '' })
+  const p = createNewPerson({ fullName: '', shortName: '' })
+  const q = createNewPerson({ fullName: '', shortName: '' })
+  const r = createNewPerson({ fullName: '', shortName: '' })
+  const s = createNewPerson({ fullName: '', shortName: '' })
+  const t = createNewPerson({ fullName: '', shortName: '' })
+  const u = createNewPerson({ fullName: '', shortName: '' })
+  const v = createNewPerson({ fullName: '', shortName: '' })
 
-  const frank = createNewPerson({ fullName: 'Frank West', shortName: 'Frank West' })
-  const grace = createNewPerson({ fullName: 'Grace Lee', shortName: 'Grace Lee' })
-  const henry = createNewPerson({ fullName: 'Henry Chen', shortName: 'Henry Chen' })
-  const iris = createNewPerson({ fullName: 'Iris Park', shortName: 'Iris Park' })
+  const frank = createNewPerson({ fullName: '', shortName: '' })
+  const grace = createNewPerson({ fullName: '', shortName: '' })
+  const henry = createNewPerson({ fullName: '', shortName: '' })
+  const iris = createNewPerson({ fullName: '', shortName: '' })
 
-  const dana = createNewPerson({ fullName: 'Dana West', shortName: 'Dana West' })
-  const evan = createNewPerson({ fullName: 'Evan Chen', shortName: 'Evan Chen' })
+  const dana = createNewPerson({ fullName: '', shortName: '' })
+  const evan = createNewPerson({ fullName: '', shortName: '' })
 
-  const avery = createNewPerson({ fullName: 'Avery Chen', shortName: 'Avery Chen' })
+  const avery = createNewPerson({ fullName: '', shortName: '' })
 
   const people = [o, p, q, r, s, t, u, v, frank, grace, henry, iris, dana, evan, avery]
   for (const person of people) {
     next.persons[person.id] = person
   }
+
+  linkMarriage(next, o.id, p.id)
+  linkMarriage(next, q.id, r.id)
+  linkMarriage(next, s.id, t.id)
+  linkMarriage(next, u.id, v.id)
+  linkMarriage(next, frank.id, grace.id)
+  linkMarriage(next, henry.id, iris.id)
+  linkMarriage(next, dana.id, evan.id)
 
   const edges: Edge[] = [
     spouseEdge(o.id, p.id),

@@ -4,41 +4,24 @@ import { useAppDispatch, useAppState } from '../state/AppProvider'
 import type { PersonDate, PhotoTransform } from '../state/appState'
 import PersonFormPhotoBlock from './PersonFormPhotoBlock'
 import PersonPrintCardPreview from './PersonPrintCardPreview'
+import { DatePicker } from './DatePicker'
 
-function DateLocationField({
+function DateField({
   label,
   value,
   onDateChange,
-  onLocationChange,
 }: {
   label: string
   value: PersonDate
   onDateChange: (next?: string) => void
-  onLocationChange: (next?: string) => void
 }) {
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ fontWeight: 700, color: 'var(--text-h)', fontSize: 13 }}>{label}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
-        <label style={{ display: 'grid', gap: 6 }}>
-          <span style={{ fontSize: 12, color: 'var(--text)' }}>Date (ISO)</span>
-          <input
-            value={value.dateISO ?? ''}
-            onChange={(e) => onDateChange(e.target.value || undefined)}
-            style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)' }}
-            placeholder="YYYY-MM-DD or YYYY"
-          />
-        </label>
-        <label style={{ display: 'grid', gap: 6 }}>
-          <span style={{ fontSize: 12, color: 'var(--text)' }}>Location</span>
-          <input
-            value={value.location ?? ''}
-            onChange={(e) => onLocationChange(e.target.value || undefined)}
-            style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)' }}
-            placeholder="City, State"
-          />
-        </label>
-      </div>
+      <label style={{ display: 'grid', gap: 6 }}>
+        <span style={{ fontSize: 12, color: 'var(--text)' }}>Date</span>
+        <DatePicker value={value.dateISO} onChange={onDateChange} />
+      </label>
     </div>
   )
 }
@@ -128,27 +111,15 @@ export default function PersonForm() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 12 }}>
-            <DateLocationField
+            <DateField
               label="Birth"
               value={person.dob}
               onDateChange={(next) => dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { dob: { ...person.dob, dateISO: next } } } })}
-              onLocationChange={(next) =>
-                dispatch({
-                  type: 'UPDATE_PERSON',
-                  payload: { personId, patch: { dob: { ...person.dob, location: next } } },
-                })
-              }
             />
-            <DateLocationField
+            <DateField
               label="Death"
               value={person.dod}
               onDateChange={(next) => dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { dod: { ...person.dod, dateISO: next } } } })}
-              onLocationChange={(next) =>
-                dispatch({
-                  type: 'UPDATE_PERSON',
-                  payload: { personId, patch: { dod: { ...person.dod, location: next } } },
-                })
-              }
             />
           </div>
 
@@ -161,45 +132,35 @@ export default function PersonForm() {
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-h)' }}>
                       {state.persons[m.spouseId]?.shortName || state.persons[m.spouseId]?.fullName || 'Spouse'}
                     </span>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)', cursor: 'pointer' }}>
+                    <label className="ftPrimaryPartnerToggle" aria-label="Primary partner">
                       <input
-                        type="checkbox"
+                        type="radio"
+                        name="primaryPartner"
                         checked={!!m.isCurrent}
-                        onChange={(e) => {
-                          const next = [...person.marriages]
-                          next[idx] = { ...m, isCurrent: e.target.checked }
+                        onChange={() => {
+                          const next = person.marriages.map((marriage, i) => ({
+                            ...marriage,
+                            isCurrent: i === idx,
+                          }))
                           dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { marriages: next } } })
                         }}
-                        style={{ accentColor: 'var(--accent)' }}
                       />
-                      Current
+                      <span className="ftPrimaryPartnerToggle__track" aria-hidden>
+                        <span className="ftPrimaryPartnerToggle__thumb" />
+                      </span>
+                      <span className="ftPrimaryPartnerToggle__text">Primary Partner</span>
                     </label>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
+                  <div style={{ display: 'grid', gap: 10 }}>
                     <label style={{ display: 'grid', gap: 6 }}>
                       <span style={{ fontSize: 12, color: 'var(--text)' }}>Marriage date</span>
-                      <input
-                        value={m.dateISO ?? ''}
-                        onChange={(e) => {
+                      <DatePicker
+                        value={m.dateISO}
+                        onChange={(val) => {
                           const next = [...person.marriages]
-                          next[idx] = { ...m, dateISO: e.target.value || undefined }
+                          next[idx] = { ...m, dateISO: val }
                           dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { marriages: next } } })
                         }}
-                        style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)' }}
-                        placeholder="YYYY-MM-DD or YYYY"
-                      />
-                    </label>
-                    <label style={{ display: 'grid', gap: 6 }}>
-                      <span style={{ fontSize: 12, color: 'var(--text)' }}>Location</span>
-                      <input
-                        value={m.location ?? ''}
-                        onChange={(e) => {
-                          const next = [...person.marriages]
-                          next[idx] = { ...m, location: e.target.value || undefined }
-                          dispatch({ type: 'UPDATE_PERSON', payload: { personId, patch: { marriages: next } } })
-                        }}
-                        style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)' }}
-                        placeholder="City, State"
                       />
                     </label>
                   </div>

@@ -31,6 +31,9 @@ function AppShell() {
                 Marriage
               </span>
             </div>
+            <div className="ftLegendNote" style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+              Note: Marriage connection lines are visible in the editor for navigation but will not be rendered in the final card export.
+            </div>
           </div>
 
           <div className="ftTopbar__right">
