@@ -17,7 +17,7 @@ import { getBlob, ingestPersonPhotoBlob } from '../storage/indexedDb'
 import { getLibraryPhotoDragId, resolveLibraryPhotoIdFromDrop, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
 import { getGenerationAccentColor } from '../utils/generation'
 import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
-import { getPersonTimelineSpots, getTimelineStartYear } from '../utils/timeline'
+import { getPersonTimelineSpots, getTimelineYearBounds } from '../utils/timeline'
 
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean; generationIndex?: number }
 type PersonNodeType = FlowNode<PersonNodeData, 'person'>
@@ -69,8 +69,11 @@ export default function PersonNode(props: NodeProps<PersonNodeType>) {
   const [hoveredHandleKey, setHoveredHandleKey] = useState<string | null>(null)
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false)
 
-  const startYear = useMemo(() => getTimelineStartYear(state), [state.persons])
-  const timelineSpots = useMemo(() => (person ? getPersonTimelineSpots(person, startYear) : []), [person, startYear])
+  const timelineBounds = useMemo(() => getTimelineYearBounds(state), [state.persons, state.edges])
+  const timelineSpots = useMemo(
+    () => (person ? getPersonTimelineSpots(person, timelineBounds?.startYear ?? null, timelineBounds?.endYear ?? null) : []),
+    [person, timelineBounds],
+  )
   const maxTimelineRow = useMemo(() => timelineSpots.reduce((m, s) => Math.max(m, s.row), 0), [timelineSpots])
 
   const onCardDoubleClick = useCallback(

@@ -30,6 +30,7 @@ import { createNewPerson } from '../state/appState'
 import { childTargetHandleId, parentSourceHandleId } from '../utils/parentHandles'
 import { slotFromSpouseRightHandle, spouseSourceHandleId, spouseTargetHandleId } from '../utils/spouseHandles'
 import { computeGenerationByPersonId } from '../utils/generation'
+import { makeUuid } from '../utils/uuid'
 
 type PersonNodeData = { personId: string; isNewlyAdded?: boolean; generationIndex: number }
 type PersonNodeType = Node<PersonNodeData, 'person'>
@@ -183,7 +184,7 @@ export default function FamilyCanvas() {
         if (exists) return
 
         const marriage = { dateISO: undefined as string | undefined, location: undefined as string | undefined }
-        const edgeId = crypto.randomUUID()
+        const edgeId = makeUuid()
         const spouseHandleSlot = slotFromSpouseRightHandle(sh)
         const pa = state.persons[a]
         const pb = state.persons[b]
@@ -247,7 +248,7 @@ export default function FamilyCanvas() {
       dispatch({
         type: 'ADD_EDGE',
         payload: {
-          edge: { id: crypto.randomUUID(), source: parentId, target: childId, type: 'parent-child' },
+          edge: { id: makeUuid(), source: parentId, target: childId, type: 'parent-child' },
         },
       })
     },
@@ -277,7 +278,7 @@ export default function FamilyCanvas() {
             sourceHandle: spouseSourceHandleId(edge, state.edges),
             targetHandle: spouseTargetHandleId(edge, state.edges),
             style: { stroke: '#a822e5', strokeWidth: 3, strokeDasharray: '4 4' },
-            label: isActivePartnerConnection ? 'Active Partner' : undefined,
+            label: isActivePartnerConnection ? 'Marriage' : undefined,
             labelStyle: isActivePartnerConnection
               ? {
                   fill: '#ffffff',

@@ -6,6 +6,7 @@ import ExportDrawer from './components/ExportDrawer'
 import OnboardingTourOverlay from './components/OnboardingTourOverlay'
 import SampleLoader from './components/SampleLoader'
 import UndoRedoControls from './components/UndoRedoControls'
+import CsvImportButton from './components/CsvImportButton'
 
 function AppShell() {
   const [exportOpen, setExportOpen] = useState(false)
@@ -45,6 +46,7 @@ function AppShell() {
                   ? 'Save issue'
                   : 'Saved'}
             </div>
+            <CsvImportButton />
             <SampleLoader />
             <button className="ftBtn ftBtn--primary" onClick={onExportClick}>
               Export for Print

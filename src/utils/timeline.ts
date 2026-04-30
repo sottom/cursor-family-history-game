@@ -9,53 +9,103 @@ export function parseYear(dateISO?: string) {
   return y
 }
 
-export function getTimelineStartYear(state: AppState): number | null {
+function roundDownToNearestFive(year: number) {
+  return Math.floor(year / 5) * 5
+}
+
+function roundUpToNearestFive(year: number) {
+  return Math.ceil(year / 5) * 5
+}
+
+export function getTimelineYearBounds(state: AppState): { startYear: number; endYear: number } | null {
   let minYear: number | null = null
+  let maxYear: number | null = null
 
   for (const person of Object.values(state.persons)) {
     const by = parseYear(person.dob?.dateISO)
-    if (by !== null && (minYear === null || by < minYear)) minYear = by
+    if (by !== null) {
+      if (minYear === null || by < minYear) minYear = by
+      if (maxYear === null || by > maxYear) maxYear = by
+    }
 
     const dy = parseYear(person.dod?.dateISO)
-    if (dy !== null && (minYear === null || dy < minYear)) minYear = dy
+    if (dy !== null) {
+      if (minYear === null || dy < minYear) minYear = dy
+      if (maxYear === null || dy > maxYear) maxYear = dy
+    }
 
     for (const m of person.marriages) {
       const my = parseYear(m.dateISO)
-      if (my !== null && (minYear === null || my < minYear)) minYear = my
+      if (my !== null) {
+        if (minYear === null || my < minYear) minYear = my
+        if (maxYear === null || my > maxYear) maxYear = my
+      }
     }
   }
 
-  return minYear
+  for (const edge of state.edges) {
+    if (edge.type !== 'spouse') continue
+    const my = parseYear(edge.marriage?.dateISO)
+    if (my !== null) {
+      if (minYear === null || my < minYear) minYear = my
+      if (maxYear === null || my > maxYear) maxYear = my
+    }
+  }
+
+  if (minYear === null || maxYear === null) return null
+
+  const currentYear = new Date().getFullYear()
+  const startYear = roundDownToNearestFive(minYear)
+  const endYear = Math.min(roundUpToNearestFive(maxYear), currentYear)
+  return { startYear, endYear: Math.max(startYear, endYear) }
 }
 
 const ERA_COLORS = [
   '#713274', // Segment 1 (Purple)
-  '#51B4B4', // Segment 2 (Teal)
+  '#51B4B4', // Segment 2 (Blue)
   '#33790E', // Segment 3 (Green)
-  '#D6982F', // Segment 4 (Gold)
+  '#D6982F', // Segment 4 (Yellow)
   '#BB0303', // Segment 5 (Red)
 ]
 
-export function getEraColor(year: number | null | undefined, startYear: number | null): string | null {
+type EraBucket = {
+  minYear: number
+  maxYear: number
+}
+
+function buildEraBuckets(startYear: number, endYear: number, bucketCount: number): EraBucket[] {
+  const totalYears = endYear - startYear + 1
+  if (totalYears <= 0 || bucketCount <= 0) return []
+
+  const buckets: EraBucket[] = []
+  for (let i = 0; i < bucketCount; i++) {
+    const bucketStart = startYear + Math.floor((i * totalYears) / bucketCount)
+    const nextBucketStart = startYear + Math.floor(((i + 1) * totalYears) / bucketCount)
+    const bucketEnd = i === bucketCount - 1 ? endYear : Math.max(bucketStart, nextBucketStart - 1)
+    buckets.push({ minYear: bucketStart, maxYear: bucketEnd })
+  }
+  return buckets
+}
+
+export function getEraColor(
+  year: number | null | undefined,
+  startYear: number | null,
+  endYear: number | null,
+): string | null {
   if (year === null || year === undefined) return null
-  if (startYear === null) return ERA_COLORS[4] // Fallback if no start year
+  if (startYear === null || endYear === null) return ERA_COLORS[ERA_COLORS.length - 1] // Fallback if bounds unavailable
 
-  const endYear = 2026
-  
   if (year < startYear) return ERA_COLORS[0]
-  if (year >= endYear) return ERA_COLORS[4]
+  if (year >= endYear) return ERA_COLORS[ERA_COLORS.length - 1]
 
-  const span = endYear - startYear
-  if (span <= 0) return ERA_COLORS[4]
+  if (startYear >= endYear) return ERA_COLORS[ERA_COLORS.length - 1]
 
-  // Divide into 5 equal segments
-  const segmentDuration = span / 5
-  
-  let segmentIndex = Math.floor((year - startYear) / segmentDuration)
-  if (segmentIndex < 0) segmentIndex = 0
-  if (segmentIndex >= 5) segmentIndex = 4
-
-  return ERA_COLORS[segmentIndex]
+  // Divide the inclusive year range [startYear, endYear] into 5 equal-year groups.
+  const buckets = buildEraBuckets(startYear, endYear, ERA_COLORS.length)
+  for (let i = 0; i < buckets.length; i++) {
+    if (year >= buckets[i].minYear && year <= buckets[i].maxYear) return ERA_COLORS[i]
+  }
+  return ERA_COLORS[ERA_COLORS.length - 1]
 }
 
 export type TimelineSpot = {
@@ -68,12 +118,16 @@ export type TimelineSpot = {
   lane: 'left' | 'center' | 'right' | 'center-left' | 'center-right'
 }
 
-export function getPersonTimelineSpots(person: Person, startYear: number | null): TimelineSpot[] {
+export function getPersonTimelineSpots(
+  person: Person,
+  startYear: number | null,
+  endYear: number | null,
+): TimelineSpot[] {
   const spots: TimelineSpot[] = []
 
   // Birth
   const by = parseYear(person.dob?.dateISO)
-  spots.push({ type: 'birth', year: by, color: getEraColor(by, startYear), row: 0, lane: 'left' })
+  spots.push({ type: 'birth', year: by, color: getEraColor(by, startYear, endYear), row: 0, lane: 'left' })
 
   // Marriages in a fixed 3-lane status area:
   // 1  => center
@@ -85,22 +139,22 @@ export function getPersonTimelineSpots(person: Person, startYear: number | null)
     const m = person.marriages[i]
     const my = m ? parseYear(m.dateISO) : null
     if (i === 0) {
-      spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear), row: 0, lane: 'center' })
+      spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear, endYear), row: 0, lane: 'center' })
       continue
     }
     if (i === 1 && marriageCount === 2) {
-      spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear), row: 1, lane: 'center' })
+      spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear, endYear), row: 1, lane: 'center' })
       continue
     }
     const pairIndex = i - 1
     const row = Math.floor(pairIndex / 2) + 1
     const lane = pairIndex % 2 === 0 ? 'center-left' : 'center-right'
-    spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear), row, lane })
+    spots.push({ type: 'marriage', year: my, color: getEraColor(my, startYear, endYear), row, lane })
   }
 
   // Death
   const dy = parseYear(person.dod?.dateISO)
-  spots.push({ type: 'death', year: dy, color: getEraColor(dy, startYear), row: 0, lane: 'right' })
+  spots.push({ type: 'death', year: dy, color: getEraColor(dy, startYear, endYear), row: 0, lane: 'right' })
 
   return spots
 }

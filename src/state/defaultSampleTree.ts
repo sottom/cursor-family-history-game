@@ -1,11 +1,12 @@
 import { layoutDagre } from '../layout/layoutDagre'
 import type { AppState, Edge } from './appState'
 import { createInitialAppState, createNewPerson } from './appState'
+import { makeUuid } from '../utils/uuid'
 
 /** Middle left/right marriage dots (`spouse-left-1` / `spouse-right-1`) so lines stay centered on cards. */
 function spouseEdge(a: string, b: string): Edge {
   return {
-    id: crypto.randomUUID(),
+    id: makeUuid(),
     source: a,
     target: b,
     type: 'spouse',
@@ -14,7 +15,7 @@ function spouseEdge(a: string, b: string): Edge {
 }
 
 function parentChild(parentId: string, childId: string): Edge {
-  return { id: crypto.randomUUID(), source: parentId, target: childId, type: 'parent-child' }
+  return { id: makeUuid(), source: parentId, target: childId, type: 'parent-child' }
 }
 
 function linkMarriage(next: AppState, a: string, b: string): void {

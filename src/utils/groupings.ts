@@ -26,6 +26,17 @@ export type EqualSpreadBucket = {
   memberCount: number
 }
 
+export type UnifiedGroupingBucket = {
+  bucketIndex: number
+  range: { minYear: number; maxYear: number }
+  members: string[]
+  memberCount: number
+  eventCount: number
+  birthCount: number
+  marriageCount: number
+  deathCount: number
+}
+
 function parseYear(dateISO?: string) {
   if (!dateISO) return null
   const m = dateISO.match(/^(\d{4})/)
@@ -218,6 +229,89 @@ export function computeEqualSpreadGrouping(params: { state: AppState; kind: Grou
     let idx = 0
     while (idx < buckets.length - 1 && entry.year > buckets[idx].maxYear) idx += 1
     buckets[idx].members.push(...entry.members)
+  }
+
+  for (const bucket of buckets) {
+    bucket.members = uniq(bucket.members)
+    bucket.memberCount = bucket.members.length
+  }
+
+  return buckets
+}
+
+type EventKind = 'birth' | 'marriage' | 'death'
+
+type EventEntry = {
+  kind: EventKind
+  year: number
+  members: string[]
+}
+
+function collectAllEventEntries(state: AppState): EventEntry[] {
+  const entries: EventEntry[] = []
+  for (const person of Object.values(state.persons)) {
+    const birthYear = parseYear(person.dob.dateISO)
+    if (birthYear != null) entries.push({ kind: 'birth', year: birthYear, members: [person.id] })
+
+    const deathYear = parseYear(person.dod.dateISO)
+    if (deathYear != null) entries.push({ kind: 'death', year: deathYear, members: [person.id] })
+  }
+  for (const edge of state.edges) {
+    if (edge.type !== 'spouse') continue
+    const marriageYear = parseYear(edge.marriage?.dateISO)
+    if (marriageYear != null) {
+      entries.push({ kind: 'marriage', year: marriageYear, members: uniq([edge.source, edge.target]) })
+    }
+  }
+  return entries
+}
+
+function buildEqualYearRanges(minYear: number, maxYear: number, bucketCount: number): Array<{ minYear: number; maxYear: number }> {
+  const totalYears = maxYear - minYear + 1
+  if (totalYears <= 0) return []
+
+  const ranges: Array<{ minYear: number; maxYear: number }> = []
+  for (let i = 0; i < bucketCount; i++) {
+    const start = minYear + Math.floor((i * totalYears) / bucketCount)
+    const nextStart = minYear + Math.floor(((i + 1) * totalYears) / bucketCount)
+    const end = i === bucketCount - 1 ? maxYear : Math.max(start, nextStart - 1)
+    ranges.push({ minYear: start, maxYear: end })
+  }
+  return ranges
+}
+
+export function computeUnifiedEventGrouping(state: AppState): UnifiedGroupingBucket[] {
+  const entries = collectAllEventEntries(state)
+  if (entries.length === 0) return []
+
+  const earliestYear = entries.reduce((min, entry) => Math.min(min, entry.year), entries[0].year)
+  const latestYear = entries.reduce((max, entry) => Math.max(max, entry.year), entries[0].year)
+  const currentYear = new Date().getFullYear()
+  const rangeStartYear = Math.floor(earliestYear / 5) * 5
+  const roundedLatestYear = Math.ceil(latestYear / 5) * 5
+  const rangeEndYear = Math.max(rangeStartYear, Math.min(roundedLatestYear, currentYear))
+  const ranges = buildEqualYearRanges(rangeStartYear, rangeEndYear, 5)
+
+  const buckets: UnifiedGroupingBucket[] = ranges.map((range, index) => ({
+    bucketIndex: index + 1,
+    range,
+    members: [],
+    memberCount: 0,
+    eventCount: 0,
+    birthCount: 0,
+    marriageCount: 0,
+    deathCount: 0,
+  }))
+
+  for (const entry of entries) {
+    let bucketIdx = 0
+    while (bucketIdx < buckets.length - 1 && entry.year > buckets[bucketIdx].range.maxYear) bucketIdx += 1
+    const bucket = buckets[bucketIdx]
+    bucket.members.push(...entry.members)
+    bucket.eventCount += 1
+    if (entry.kind === 'birth') bucket.birthCount += 1
+    else if (entry.kind === 'marriage') bucket.marriageCount += 1
+    else bucket.deathCount += 1
   }
 
   for (const bucket of buckets) {

@@ -5,7 +5,7 @@ import JSZip from 'jszip'
 
 import { useAppDispatch, useAppState } from '../state/AppProvider'
 import { PERSON_CARD_H, PERSON_CARD_W } from '../state/appState'
-import { computeAllGroupings, computeEqualSpreadGrouping } from '../utils/groupings'
+import { computeUnifiedEventGrouping } from '../utils/groupings'
 import { getBlob, getOriginalBlobKey } from '../storage/indexedDb'
 import { getReactFlowInstance } from '../utils/reactFlowBridge'
 import PersonCardExport from './PersonCardExport'
@@ -74,15 +74,15 @@ function personToCsvRow(person: Person) {
   }
 }
 
-function groupingRowsFromEqualSpread(params: {
-  kind: 'birth' | 'marriage' | 'death'
-  buckets: ReturnType<typeof computeEqualSpreadGrouping>
-}) {
-  return params.buckets.map((bucket, index) => ({
-    kind: params.kind,
-    bucketIndex: index + 1,
-    rangeStartYear: bucket.minYear,
-    rangeEndYear: bucket.maxYear,
+function groupingRowsFromUnifiedGrouping(buckets: ReturnType<typeof computeUnifiedEventGrouping>) {
+  return buckets.map((bucket) => ({
+    bucketIndex: bucket.bucketIndex,
+    rangeStartYear: bucket.range.minYear,
+    rangeEndYear: bucket.range.maxYear,
+    eventCount: bucket.eventCount,
+    birthCount: bucket.birthCount,
+    marriageCount: bucket.marriageCount,
+    deathCount: bucket.deathCount,
     memberCount: bucket.memberCount,
     memberIds: bucket.members.join('|'),
   }))
@@ -624,17 +624,10 @@ export default function ExportDrawer({ onClose }: { onClose: () => void }) {
       }
       zip.file('data.json', JSON.stringify(dataJson, null, 2))
 
-      const groupings = computeAllGroupings({ state, overrides: state.ui.groupingOverrides })
+      const groupings = computeUnifiedEventGrouping(state)
       zip.file('groupings.json', JSON.stringify(groupings, null, 2))
 
-      const groupingRows = [
-        ...groupingRowsFromEqualSpread({ kind: 'birth', buckets: computeEqualSpreadGrouping({ state, kind: 'birth' }) }),
-        ...groupingRowsFromEqualSpread({
-          kind: 'marriage',
-          buckets: computeEqualSpreadGrouping({ state, kind: 'marriage' }),
-        }),
-        ...groupingRowsFromEqualSpread({ kind: 'death', buckets: computeEqualSpreadGrouping({ state, kind: 'death' }) }),
-      ]
+      const groupingRows = groupingRowsFromUnifiedGrouping(groupings)
       if (groupingRows.length > 0) {
         zip.file('groupings.csv', toCsv(groupingRows))
       }

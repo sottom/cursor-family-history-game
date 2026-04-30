@@ -12,6 +12,7 @@ import type { PhotoLibraryEntry } from '../state/appState'
 import { deleteBlob, getBlob, getPhotoLibraryBlobKey, putBlob } from '../storage/indexedDb'
 import { decodeIfHeic } from '../utils/heicDecode'
 import { PHOTO_LIBRARY_DATA_PREFIX, setLibraryPhotoDragId } from '../utils/photoLibraryDrag'
+import { makeUuid } from '../utils/uuid'
 
 function isImageFile(file: File): boolean {
   const t = file.type.toLowerCase()
@@ -210,7 +211,7 @@ export default function PhotoLibraryPanel({ className = '' }: PhotoLibraryPanelP
         const entries: PhotoLibraryEntry[] = []
         for (const file of files) {
           const match = payload.find((p) => p.file === file)
-          const id = crypto.randomUUID()
+          const id = makeUuid()
           const blobKey = getPhotoLibraryBlobKey(id)
           await putBlob(blobKey, file)
           entries.push({ id, name: displayNameForFile(file, match?.path), blobKey })

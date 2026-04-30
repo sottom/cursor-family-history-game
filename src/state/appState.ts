@@ -1,3 +1,5 @@
+import { makeUuid } from '../utils/uuid'
+
 export type PhotoTransform = {
   xPercent: number
   yPercent: number
@@ -181,7 +183,7 @@ export type AppAction =
     }
 
 export function createNewPerson(params?: Partial<Pick<Person, 'fullName' | 'shortName' | 'dob' | 'dod' | 'notes'>>): Person {
-  const id = crypto.randomUUID()
+  const id = makeUuid()
   return {
     id,
     fullName: params?.fullName ?? '',

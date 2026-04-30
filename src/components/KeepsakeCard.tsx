@@ -10,7 +10,7 @@ import {
 } from '../state/appState'
 import { computeGenerationByPersonId, getGenerationAccentColor } from '../utils/generation'
 import { personPhotoFrameWrapperStyle } from '../utils/photoFrameTransform'
-import { getEraColor, getPersonTimelineSpots, getTimelineStartYear, parseYear } from '../utils/timeline'
+import { getEraColor, getPersonTimelineSpots, getTimelineYearBounds, parseYear } from '../utils/timeline'
 
 /**
  * Shared renderer for the "Keepsake" print card. The edit-modal preview and the
@@ -298,10 +298,12 @@ export default function KeepsakeCard({
     return getGenerationAccentColor(idx)
   }, [personId, state.persons, state.edges])
 
-  const startYear = useMemo(() => getTimelineStartYear(state), [state])
+  const timelineBounds = useMemo(() => getTimelineYearBounds(state), [state.persons, state.edges])
+  const startYear = timelineBounds?.startYear ?? null
+  const endYear = timelineBounds?.endYear ?? null
   const timelineSpots = useMemo(
-    () => (person ? getPersonTimelineSpots(person, startYear) : []),
-    [person, startYear],
+    () => (person ? getPersonTimelineSpots(person, startYear, endYear) : []),
+    [person, startYear, endYear],
   )
 
   const displayName = useMemo(
@@ -311,13 +313,15 @@ export default function KeepsakeCard({
 
   const birth = useMemo(() => formatLifecycleDate(person?.dob?.dateISO), [person?.dob?.dateISO])
   const death = useMemo(() => formatLifecycleDate(person?.dod?.dateISO), [person?.dod?.dateISO])
-  const birthBubble = useMemo(() => getEraColor(parseYear(person?.dob?.dateISO), startYear), [
+  const birthBubble = useMemo(() => getEraColor(parseYear(person?.dob?.dateISO), startYear, endYear), [
     person?.dob?.dateISO,
     startYear,
+    endYear,
   ])
-  const deathBubble = useMemo(() => getEraColor(parseYear(person?.dod?.dateISO), startYear), [
+  const deathBubble = useMemo(() => getEraColor(parseYear(person?.dod?.dateISO), startYear, endYear), [
     person?.dod?.dateISO,
     startYear,
+    endYear,
   ])
 
   const marriageRows = useMemo(() => {
@@ -331,9 +335,9 @@ export default function KeepsakeCard({
     return ordered.map((m) => ({
       spouseId: m.spouseId,
       formatted: formatLifecycleDate(m.dateISO),
-      bubble: getEraColor(parseYear(m.dateISO), startYear),
+      bubble: getEraColor(parseYear(m.dateISO), startYear, endYear),
     }))
-  }, [person?.marriages, startYear])
+  }, [person?.marriages, startYear, endYear])
 
   if (!person) return null
 
