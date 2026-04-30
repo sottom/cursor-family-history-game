@@ -268,14 +268,27 @@ function collectAllEventEntries(state: AppState): EventEntry[] {
 
 function buildEqualYearRanges(minYear: number, maxYear: number, bucketCount: number): Array<{ minYear: number; maxYear: number }> {
   const totalYears = maxYear - minYear + 1
-  if (totalYears <= 0) return []
+  if (totalYears <= 0 || bucketCount <= 0) return []
+  const targetSpanYears = Math.ceil(totalYears / bucketCount)
+
+  const roundUpToYearBeforeMultipleOfFive = (year: number) => Math.ceil((year + 1) / 5) * 5 - 1
 
   const ranges: Array<{ minYear: number; maxYear: number }> = []
+  let start = minYear
   for (let i = 0; i < bucketCount; i++) {
-    const start = minYear + Math.floor((i * totalYears) / bucketCount)
-    const nextStart = minYear + Math.floor(((i + 1) * totalYears) / bucketCount)
-    const end = i === bucketCount - 1 ? maxYear : Math.max(start, nextStart - 1)
+    const isLast = i === bucketCount - 1
+    const remainingBuckets = bucketCount - i
+    let end: number
+    if (isLast) {
+      end = maxYear
+    } else {
+      const rawEnd = start + targetSpanYears - 1
+      const roundedEnd = roundUpToYearBeforeMultipleOfFive(rawEnd)
+      const maxEndToLeaveFutureBuckets = maxYear - (remainingBuckets - 1)
+      end = Math.max(start, Math.min(roundedEnd, maxEndToLeaveFutureBuckets))
+    }
     ranges.push({ minYear: start, maxYear: end })
+    start = end + 1
   }
   return ranges
 }

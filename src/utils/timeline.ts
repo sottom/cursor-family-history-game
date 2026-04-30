@@ -73,16 +73,42 @@ type EraBucket = {
   maxYear: number
 }
 
+function roundUpToYearBeforeMultipleOfFive(year: number) {
+  return Math.ceil((year + 1) / 5) * 5 - 1
+}
+
+/**
+ * Era bucket rules (shared with grouping logic):
+ * 1) Start from earliest event year rounded down to a multiple of 5.
+ * 2) End at latest event year rounded up to a multiple of 5, capped at current year.
+ * 3) Split total years into 5 groups using a base span of ceil(totalYears / 5).
+ * 4) For groups 1-4, round each tentative end up to the year before a multiple of 5
+ *    (e.g. 1951 -> 1954), then start the next group at end + 1.
+ * 5) Group 5 absorbs the remaining years (can be shorter/compressed).
+ */
 function buildEraBuckets(startYear: number, endYear: number, bucketCount: number): EraBucket[] {
   const totalYears = endYear - startYear + 1
   if (totalYears <= 0 || bucketCount <= 0) return []
+  const targetSpanYears = Math.ceil(totalYears / bucketCount)
 
   const buckets: EraBucket[] = []
+  let bucketStart = startYear
   for (let i = 0; i < bucketCount; i++) {
-    const bucketStart = startYear + Math.floor((i * totalYears) / bucketCount)
-    const nextBucketStart = startYear + Math.floor(((i + 1) * totalYears) / bucketCount)
-    const bucketEnd = i === bucketCount - 1 ? endYear : Math.max(bucketStart, nextBucketStart - 1)
+    const isLast = i === bucketCount - 1
+    const remainingBuckets = bucketCount - i
+    let bucketEnd: number
+
+    if (isLast) {
+      bucketEnd = endYear
+    } else {
+      const rawEnd = bucketStart + targetSpanYears - 1
+      const roundedEnd = roundUpToYearBeforeMultipleOfFive(rawEnd)
+      const maxEndToLeaveFutureBuckets = endYear - (remainingBuckets - 1)
+      bucketEnd = Math.max(bucketStart, Math.min(roundedEnd, maxEndToLeaveFutureBuckets))
+    }
+
     buckets.push({ minYear: bucketStart, maxYear: bucketEnd })
+    bucketStart = bucketEnd + 1
   }
   return buckets
 }
